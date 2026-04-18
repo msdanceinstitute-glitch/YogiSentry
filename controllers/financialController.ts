@@ -1,5 +1,7 @@
 import { Response } from "express";
 import { FinancialService } from "../services/financialService.js";
+import { InvoiceService } from "../services/invoiceService.js";
+import { TwilioService } from "../services/twilioService.js";
 import { AuthRequest } from "../middleware/auth.js";
 import { z } from "zod";
 
@@ -34,10 +36,24 @@ export const FinancialController = {
 
   async markMaintenancePaid(req: AuthRequest, res: Response) {
       try {
-        const { maintenanceId } = req.body;
+        const { maintenanceId, phone } = req.body; 
         const { societyId } = req.user!;
+        
         await FinancialService.markMaintenancePaid(societyId, maintenanceId);
-        res.json({ success: true });
+        
+        // Generate Invoice
+        const invoiceUrl = await InvoiceService.generateAndUploadInvoice({
+            id: maintenanceId,
+            residentName: "Resident", 
+            flatNo: "Unknown",      
+            amount: 0,              
+            date: new Date().toISOString()
+        });
+
+        // Send SMS
+        await TwilioService.sendSMS(phone, `Payment received! Invoice: ${invoiceUrl}`);
+
+        res.json({ success: true, data: { invoiceUrl } });
       } catch (err: any) {
         res.status(500).json({ error: err.message });
       }

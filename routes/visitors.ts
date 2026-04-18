@@ -4,7 +4,7 @@ import { authenticate, authorizeRole } from "../middleware/auth.js";
 
 const routes = Router();
 
-routes.post("/add", authenticate, authorizeRole(["GUARD"]), VisitorController.addVisitor);
-routes.post("/respond", authenticate, authorizeRole(["RESIDENT"]), VisitorController.respondToVisitor);
+routes.post("/create", authenticate, authorizeRole(["GUARD"]), VisitorController.createRequest);
+routes.post("/update-status", authenticate, authorizeRole(["RESIDENT"]), VisitorController.updateStatus);
 
 export default routes;

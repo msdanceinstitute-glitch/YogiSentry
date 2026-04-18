@@ -1,6 +1,4 @@
 import { create } from 'zustand';
-import { db } from '../lib/firebase';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 // --- Types ---
 export type Role = 'SUPER_ADMIN' | 'SECRETARY' | 'GUARD' | 'HOUSEKEEPING' | 'RESIDENT';
@@ -297,7 +295,7 @@ const MOCK_USERS: User[] = [
 ];
 
 export const useStore = create<AppState>((set) => ({
-  registrationCharge: 5000, // Default 5000
+  registrationCharge: 5000, 
   setRegistrationCharge: (charge) => set({ registrationCharge: charge }),
   registerSocietyFull: (society: Society, staff: User[], residents: User[]) => set((state) => ({
     societies: [...state.societies, society],
@@ -425,75 +423,3 @@ export const useStore = create<AppState>((set) => ({
     activityLogs: [{ id: Date.now().toString(), date: new Date().toISOString(), action, user, societyId }, ...state.activityLogs]
   })),
 }));
-
-// --- Firebase Sync Logic ---
-let isHydrating = true;
-let isSyncingFromRemote = false; // Flag to prevent infinite loops
-const STATE_DOC_REF = doc(db, 'app_state', 'main');
-
-// Load from Firebase
-onSnapshot(STATE_DOC_REF, (docSnap) => {
-  try {
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      console.log("Syncing from Firestore...", Object.keys(data));
-      
-      isSyncingFromRemote = true; // Set flag before updating local state
-
-      // Ensure core collections are always arrays to prevent filter() crashes
-      const safeData = { ...data };
-      const arrayKeys = [
-        'users', 'societies', 'visitorRequests', 'permanentPasses', 'parcels', 
-        'cleaningProofs', 'vehicles', 'maintenanceDues', 'expenses', 'complaints', 
-        'notices', 'clubhouseBookings', 'eventRequests', 'emailTemplates', 
-        'subscriptions', 'purchaseOrders', 'payrolls', 'supportTickets', 'activityLogs'
-      ];
-      
-      arrayKeys.forEach(key => {
-        if (safeData[key] && !Array.isArray(safeData[key])) {
-          safeData[key] = [];
-        } else if (!safeData[key]) {
-          safeData[key] = useStore.getState()[key as keyof AppState] || [];
-        }
-      });
-
-      // Special protect for users to keep at least MOCK_USERS if empty
-      const remoteUsers = Array.isArray(safeData.users) ? safeData.users : [];
-      const updatedUsers = remoteUsers.length > 0 ? remoteUsers : useStore.getState().users;
-
-      useStore.setState({
-        ...safeData,
-        users: updatedUsers,
-        currentUser: useStore.getState().currentUser
-      } as Partial<AppState>);
-
-      isSyncingFromRemote = false; // Reset flag after update
-    } else {
-      console.log("No remote state found, using local defaults.");
-    }
-  } catch (err) {
-    console.error("Hydration error:", err);
-    isSyncingFromRemote = false;
-  } finally {
-    isHydrating = false;
-  }
-}, (error) => {
-  console.error("Firebase connection error:", error);
-  isHydrating = false; 
-});
-
-// Save to Firebase on every local change
-useStore.subscribe((state) => {
-  if (isHydrating || isSyncingFromRemote) return; // Skip if initial load or remote sync
-  
-  // Extract only non-functional state to save
-  const stateToSave: any = {};
-  Object.keys(state).forEach(key => {
-    const value = (state as any)[key];
-    if (typeof value !== 'function' && key !== 'currentUser') {
-      stateToSave[key] = value;
-    }
-  });
-  
-  setDoc(STATE_DOC_REF, stateToSave).catch(e => console.error("Error saving to Firebase:", e));
-});
