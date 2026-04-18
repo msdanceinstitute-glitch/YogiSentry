@@ -17,6 +17,8 @@ export default function Login() {
 
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
+    setIsLoading(false); // Ensure loading stops on success before navigation
+    
     switch (user.role) {
       case 'SUPER_ADMIN': navigate('/super-admin'); break;
       case 'SECRETARY': navigate('/secretary'); break;
@@ -36,12 +38,18 @@ export default function Login() {
     
     // Simulate network delay
     setTimeout(() => {
-      const foundUser = users.find(u => u.loginId === loginId && u.password === password);
-      
-      if (foundUser) {
-        handleLoginSuccess(foundUser);
-      } else {
-        setError("Invalid Resident ID or Password.");
+      try {
+        const foundUser = users.find(u => u.loginId === loginId && u.password === password);
+        
+        if (foundUser) {
+          handleLoginSuccess(foundUser);
+        } else {
+          setError("Invalid Resident ID or Password.");
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error("Login crash:", err);
+        setError("An unexpected error occurred during login.");
         setIsLoading(false);
       }
     }, 600);

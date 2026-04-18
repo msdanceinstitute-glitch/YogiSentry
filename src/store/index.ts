@@ -165,15 +165,6 @@ export interface Vehicle {
   societyId: string;
 }
 
-export interface Vehicle {
-  id: string;
-  flatNo: string;
-  vehicleId: string;
-  frontPhoto: string;
-  backPhoto: string;
-  societyId: string;
-}
-
 export interface Notice {
   id: string;
   title: string;
@@ -398,8 +389,10 @@ onSnapshot(STATE_DOC_REF, (docSnap) => {
   if (docSnap.exists()) {
     const data = docSnap.data();
     // Rehydrate everything EXCEPT the current logged in user (so different tabs can have different actors)
+    // Also ensure MOCK_USERS are preserved if the remote users array is empty/missing
     useStore.setState({
       ...data,
+      users: (data.users && data.users.length > 0) ? data.users : useStore.getState().users,
       currentUser: useStore.getState().currentUser 
     } as Partial<AppState>);
   }
