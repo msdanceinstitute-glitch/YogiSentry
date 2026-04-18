@@ -44,6 +44,7 @@ export interface Society {
   subscriptionExpiry?: string; // ISO Date
   logoUrl?: string;
   faviconUrl?: string;
+  upiId?: string;
 }
 
 export interface EmailTemplate {
@@ -223,6 +224,7 @@ interface AppState {
   societies: Society[];
   addSociety: (s: Society) => void;
   updateSociety: (id: string, updates: Partial<Society>) => void;
+  deleteSociety: (id: string) => void;
   // Guard loop
   visitorRequests: VisitorRequest[];
   addVisitorRequest: (req: VisitorRequest) => void;
@@ -309,6 +311,22 @@ export const useStore = create<AppState>((set) => ({
   societies: MOCK_SOCIETIES,
   addSociety: (s) => set((state) => ({ societies: [...state.societies, s] })),
   updateSociety: (id, updates) => set((state) => ({ societies: state.societies.map(s => s.id === id ? { ...s, ...updates } : s) })),
+  deleteSociety: (id) => set((state) => ({
+    societies: state.societies.filter(s => s.id !== id),
+    users: state.users.filter(u => u.societyId !== id),
+    visitorRequests: state.visitorRequests.filter(v => v.societyId !== id),
+    permanentPasses: state.permanentPasses.filter(p => p.societyId !== id),
+    parcels: state.parcels.filter(p => p.societyId !== id),
+    cleaningProofs: state.cleaningProofs.filter(c => c.societyId !== id),
+    vehicles: state.vehicles.filter(v => v.societyId !== id),
+    maintenanceDues: state.maintenanceDues.filter(m => m.societyId !== id),
+    expenses: state.expenses.filter(e => e.societyId !== id),
+    complaints: state.complaints.filter(c => c.societyId !== id),
+    notices: state.notices.filter(n => n.societyId !== id),
+    clubhouseBookings: state.clubhouseBookings.filter(b => b.societyId !== id),
+    eventRequests: state.eventRequests.filter(e => e.societyId !== id),
+    activityLogs: state.activityLogs.filter(a => a.societyId !== id),
+  })),
 
   visitorRequests: [],
   addVisitorRequest: (req) => set((state) => ({ visitorRequests: [req, ...state.visitorRequests] })),

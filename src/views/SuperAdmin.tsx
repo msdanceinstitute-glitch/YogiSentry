@@ -1,6 +1,6 @@
 import { useStore, Society, User } from '@/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, TrendingUp, Users, Plus, Pencil, XCircle, CheckCircle2, Wallet, CreditCard, Activity, ArrowUpRight, Mail, ArrowDownToLine, Image as ImageIcon, Smartphone } from 'lucide-react';
+import { Building2, TrendingUp, Users, Plus, Pencil, XCircle, CheckCircle2, Wallet, CreditCard, Activity, ArrowUpRight, Mail, ArrowDownToLine, Image as ImageIcon, Smartphone, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'react-router-dom';
 import React, { useState } from 'react';
@@ -22,7 +22,12 @@ const exportCSV = (data: any[], filename: string) => {
 };
 
 export default function SuperAdmin() {
-  const { societies, users, emailTemplates, updateEmailTemplate, addSociety, updateSociety, addUser, updateUser, registrationCharge, activityLogs, subscriptions, addSubscription, updateSubscription, payrolls, addPayrollRecord } = useStore();
+  const { 
+    societies, users, emailTemplates, updateEmailTemplate, 
+    addSociety, updateSociety, deleteSociety, addUser, updateUser, 
+    registrationCharge, activityLogs, subscriptions, addSubscription, 
+    updateSubscription, payrolls, addPayrollRecord, purchaseOrders, addPurchaseOrder 
+  } = useStore();
   const location = useLocation();
 
   const totalRevenue = societies.reduce((acc, soc) => acc + soc.totalRevenue, 0);
@@ -429,8 +434,6 @@ export default function SuperAdmin() {
   }
 
   if (currentTab === 'subscriptions') {
-    const { purchaseOrders, addPurchaseOrder } = useStore();
-
     const handleAddPlan = (e: React.FormEvent) => {
       e.preventDefault();
       addSubscription({
@@ -1021,6 +1024,18 @@ export default function SuperAdmin() {
                          />
                        </label>
                       <Button variant="outline" size="sm">Manage</Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          if (confirm(`Are you absolutely sure you want to delete ${soc.name}? This will permanently remove ALL residents, staff, visitors, and historical data for this society. This action CANNOT be undone.`)) {
+                            deleteSociety(soc.id);
+                          }
+                        }}
+                       >
+                         <Trash2 className="h-4 w-4" />
+                       </Button>
                     </td>
                   </tr>
                 ))}

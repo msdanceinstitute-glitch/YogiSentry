@@ -3,13 +3,14 @@ import { useStore } from '@/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CheckCircle2, XCircle, Bell, Car, X, Package as PackageIcon, Info, Megaphone, FileText } from 'lucide-react';
+import { CheckCircle2, XCircle, Bell, Car, X, Package as PackageIcon, Info, Megaphone, FileText, QrCode } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Resident() {
   const { 
     currentUser, 
+    societies,
     maintenanceDues, 
     markMaintenancePaid, 
     vehicles, 
@@ -50,6 +51,9 @@ export default function Resident() {
   // Communication form
   const [noticeTitle, setNoticeTitle] = useState('');
   const [noticeContent, setNoticeContent] = useState('');
+
+  const [payingDueId, setPayingDueId] = useState<string | null>(null);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
   const myVisitors = visitorRequests.filter(v => v.societyId === currentUser?.societyId && v.flatNo === currentUser?.flatNo);
   const myParcels = parcels.filter(p => p.societyId === currentUser?.societyId && p.flatNo === currentUser?.flatNo);
@@ -252,7 +256,7 @@ export default function Resident() {
                       </div>
                       <div className="flex items-center gap-[16px]">
                           <p className={`font-mono text-[18px] font-[700] text-danger`}>₹{due.amount}</p>
-                          <Button size="sm" onClick={() => markMaintenancePaid(due.id)}>Pay via UPI</Button>
+                          <Button size="sm" onClick={() => setPayingDueId(due.id)}>Pay via UPI</Button>
                       </div>
                     </div>
                   ))}
@@ -595,6 +599,59 @@ export default function Resident() {
       </div>
 
       {zoomModal(zoomedImage, setZoomedImage)}
+      
+      {payingDueId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <Card className="w-full max-w-[400px] border-none shadow-2xl overflow-hidden">
+            <CardHeader className="bg-slate-900 text-white pb-6 pt-8 flex flex-col items-center">
+              <div className="p-3 bg-white/10 rounded-full mb-3">
+                <QrCode className="h-8 w-8 text-white" />
+              </div>
+              <CardTitle className="text-xl">UPI Secure Payment</CardTitle>
+              <p className="text-xs text-white/60 mt-1">Scan QR via any UPI App</p>
+            </CardHeader>
+            <CardContent className="p-8 flex flex-col items-center bg-white">
+              <div className="p-4 bg-white border-4 border-slate-100 rounded-2xl shadow-inner mb-6 relative">
+                 <img 
+                   src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${societies.find(s=>s.id === currentUser?.societyId)?.upiId || 'yogi.sentry@upi'}&am=${maintenanceDues.find(d=>d.id === payingDueId)?.amount || 0}&tn=Maintenance_${maintenanceDues.find(d=>d.id === payingDueId)?.month?.replace(' ', '_')}`} 
+                   className="w-[200px] h-[200px]" 
+                   alt="QR Code" 
+                 />
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="bg-white p-1 rounded-sm border shadow-sm">
+                      <div className="h-6 w-6 bg-slate-900 rounded-sm flex items-center justify-center font-bold text-white text-[10px]">YS</div>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="w-full space-y-4">
+                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
+                  <span className="text-sm font-semibold text-slate-500">Amount to Pay</span>
+                  <span className="text-lg font-bold text-slate-900">₹{maintenanceDues.find(d=>d.id === payingDueId)?.amount}</span>
+                </div>
+
+                <div className="text-center">
+                   <p className="text-[11px] text-slate-400 mb-4 px-4 uppercase tracking-widest font-bold">Verification Pending</p>
+                </div>
+
+                <div className="flex gap-3">
+                   <Button variant="outline" className="flex-1" onClick={() => setPayingDueId(null)}>Cancel</Button>
+                   <Button className="flex-1 bg-slate-900 hover:bg-slate-800" disabled={isVerifyingPayment} onClick={() => {
+                     setIsVerifyingPayment(true);
+                     setTimeout(() => {
+                       markMaintenancePaid(payingDueId!);
+                       setIsVerifyingPayment(false);
+                       setPayingDueId(null);
+                     }, 2000);
+                   }}>
+                     {isVerifyingPayment ? 'Verifying...' : 'Confirmed Paid'}
+                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </>
   );
 }
