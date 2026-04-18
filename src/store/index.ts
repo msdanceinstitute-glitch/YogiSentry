@@ -225,6 +225,7 @@ interface AppState {
   addSociety: (s: Society) => void;
   updateSociety: (id: string, updates: Partial<Society>) => void;
   deleteSociety: (id: string) => void;
+  registerSocietyFull: (society: Society, staff: User[], residents: User[]) => void;
   // Guard loop
   visitorRequests: VisitorRequest[];
   addVisitorRequest: (req: VisitorRequest) => void;
@@ -298,6 +299,10 @@ const MOCK_USERS: User[] = [
 export const useStore = create<AppState>((set) => ({
   registrationCharge: 5000, // Default 5000
   setRegistrationCharge: (charge) => set({ registrationCharge: charge }),
+  registerSocietyFull: (society: Society, staff: User[], residents: User[]) => set((state) => ({
+    societies: [...state.societies, society],
+    users: [...state.users, ...staff, ...residents]
+  })),
   users: MOCK_USERS,
   updateUser: (id, updates) => set((state) => ({
     users: state.users.map(u => u.id === id ? { ...u, ...updates } : u),
@@ -326,6 +331,7 @@ export const useStore = create<AppState>((set) => ({
     clubhouseBookings: state.clubhouseBookings.filter(b => b.societyId !== id),
     eventRequests: state.eventRequests.filter(e => e.societyId !== id),
     activityLogs: state.activityLogs.filter(a => a.societyId !== id),
+    purchaseOrders: state.purchaseOrders.filter(po => po.societyId !== id),
   })),
 
   visitorRequests: [],
@@ -422,6 +428,7 @@ export const useStore = create<AppState>((set) => ({
 
 // --- Firebase Sync Logic ---
 let isHydrating = true;
+let isSyncingFromRemote = false; // Flag to prevent infinite loops
 const STATE_DOC_REF = doc(db, 'app_state', 'main');
 
 // Load from Firebase
@@ -431,20 +438,42 @@ onSnapshot(STATE_DOC_REF, (docSnap) => {
       const data = docSnap.data();
       console.log("Syncing from Firestore...", Object.keys(data));
       
-      // Ensure users is always an array of at least MOCK_USERS to prevent login failure
-      const remoteUsers = Array.isArray(data.users) ? data.users : [];
+      isSyncingFromRemote = true; // Set flag before updating local state
+
+      // Ensure core collections are always arrays to prevent filter() crashes
+      const safeData = { ...data };
+      const arrayKeys = [
+        'users', 'societies', 'visitorRequests', 'permanentPasses', 'parcels', 
+        'cleaningProofs', 'vehicles', 'maintenanceDues', 'expenses', 'complaints', 
+        'notices', 'clubhouseBookings', 'eventRequests', 'emailTemplates', 
+        'subscriptions', 'purchaseOrders', 'payrolls', 'supportTickets', 'activityLogs'
+      ];
+      
+      arrayKeys.forEach(key => {
+        if (safeData[key] && !Array.isArray(safeData[key])) {
+          safeData[key] = [];
+        } else if (!safeData[key]) {
+          safeData[key] = useStore.getState()[key as keyof AppState] || [];
+        }
+      });
+
+      // Special protect for users to keep at least MOCK_USERS if empty
+      const remoteUsers = Array.isArray(safeData.users) ? safeData.users : [];
       const updatedUsers = remoteUsers.length > 0 ? remoteUsers : useStore.getState().users;
 
       useStore.setState({
-        ...data,
+        ...safeData,
         users: updatedUsers,
-        currentUser: useStore.getState().currentUser // Never overwrite local session
+        currentUser: useStore.getState().currentUser
       } as Partial<AppState>);
+
+      isSyncingFromRemote = false; // Reset flag after update
     } else {
       console.log("No remote state found, using local defaults.");
     }
   } catch (err) {
     console.error("Hydration error:", err);
+    isSyncingFromRemote = false;
   } finally {
     isHydrating = false;
   }
@@ -455,7 +484,7 @@ onSnapshot(STATE_DOC_REF, (docSnap) => {
 
 // Save to Firebase on every local change
 useStore.subscribe((state) => {
-  if (isHydrating) return;
+  if (isHydrating || isSyncingFromRemote) return; // Skip if initial load or remote sync
   
   // Extract only non-functional state to save
   const stateToSave: any = {};

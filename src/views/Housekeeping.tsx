@@ -100,10 +100,10 @@ export default function Housekeeping() {
         </CardHeader>
         <CardContent className="pt-[16px]">
            <div className="space-y-[12px]">
-             {cleaningProofs.filter(p => p.societyId === currentUser?.societyId && p.staffName === currentUser?.name).length === 0 ? (
+             {(cleaningProofs || []).filter(p => p.societyId === currentUser?.societyId && p.staffName === currentUser?.name).length === 0 ? (
                <p className="text-text-muted text-[13px] text-center py-[24px]">No submissions today.</p>
              ) : (
-               cleaningProofs.filter(p => p.societyId === currentUser?.societyId && p.staffName === currentUser?.name).map(proof => (
+               (cleaningProofs || []).filter(p => p.societyId === currentUser?.societyId && p.staffName === currentUser?.name).map(proof => (
                  <div key={proof.id} className="flex gap-[16px] bg-[#f9fafb] p-[12px] rounded-[8px] border border-border">
                    <img src={proof.photoUrl} alt="proof" className="w-[80px] h-[60px] rounded-[4px] object-cover" />
                    <div className="flex flex-col justify-center">

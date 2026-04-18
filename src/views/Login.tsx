@@ -56,9 +56,9 @@ export default function Login() {
       try {
         console.log("Attempting login for ID:", loginId, "Directory size:", users?.length);
         
-        if (!Array.isArray(users)) {
-          console.error("Store users is not an array:", users);
-          setError("Connecting to secure server... Please try again in a moment.");
+        if (!Array.isArray(users) || users.length === 0) {
+          console.error("Critical: User directory empty or malformed.");
+          setError("Initializing secure database connections... Please wait 5 seconds and try again.");
           setIsLoading(false);
           return;
         }

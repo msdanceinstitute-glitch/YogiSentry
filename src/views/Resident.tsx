@@ -55,10 +55,11 @@ export default function Resident() {
   const [payingDueId, setPayingDueId] = useState<string | null>(null);
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
-  const myVisitors = visitorRequests.filter(v => v.societyId === currentUser?.societyId && v.flatNo === currentUser?.flatNo);
-  const myParcels = parcels.filter(p => p.societyId === currentUser?.societyId && p.flatNo === currentUser?.flatNo);
-  const myBookings = clubhouseBookings.filter(b => b.societyId === currentUser?.societyId && b.flatNo === currentUser?.flatNo);
-  const myEvents = eventRequests.filter(e => e.societyId === currentUser?.societyId && e.flatNo === currentUser?.flatNo);
+  const myVisitors = (visitorRequests || []).filter(v => v.societyId === currentUser?.societyId && v.flatNo === currentUser?.flatNo);
+  const myParcels = (parcels || []).filter(p => p.societyId === currentUser?.societyId && p.flatNo === currentUser?.flatNo);
+  const myBookings = (clubhouseBookings || []).filter(b => b.societyId === currentUser?.societyId && b.flatNo === currentUser?.flatNo);
+  const myEvents = (eventRequests || []).filter(e => e.societyId === currentUser?.societyId && e.flatNo === currentUser?.flatNo);
+  const myNotices = (notices || []).filter(n => n.societyId === currentUser?.societyId);
 
   const handleUpdateStatus = (requestId: string, newStatus: 'APPROVED' | 'DECLINED') => {
     updateVisitorStatus(requestId, newStatus);
@@ -149,8 +150,8 @@ export default function Resident() {
 
   if (!currentUser?.flatNo) return <div>Missing Resident Data</div>;
 
-  const myDues = maintenanceDues.filter(m => m.flatNo === currentUser.flatNo);
-  const myVehicles = vehicles.filter(v => v.flatNo === currentUser.flatNo);
+  const myDues = (maintenanceDues || []).filter(m => m.flatNo === currentUser.flatNo && m.societyId === currentUser.societyId);
+  const myVehicles = (vehicles || []).filter(v => v.flatNo === currentUser.flatNo && v.societyId === currentUser.societyId);
 
   const pendingDues = myDues.filter(m => m.status === 'UNPAID');
   const paidDues = myDues.filter(m => m.status === 'PAID');
@@ -510,7 +511,7 @@ export default function Resident() {
                       </div>
                       <div className="flex items-center gap-[16px]">
                          <p className="font-mono text-[18px] font-[700]">₹{due.amount}</p>
-                         <Button size="sm" onClick={() => markMaintenancePaid(due.id)}>Pay via UPI</Button>
+                         <Button size="sm" onClick={() => setPayingDueId(due.id)}>Pay via UPI</Button>
                       </div>
                    </div>
                 ))}

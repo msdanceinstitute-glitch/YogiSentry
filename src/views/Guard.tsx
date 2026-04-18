@@ -40,9 +40,9 @@ export default function Guard() {
   const [parcelPhoto, setParcelPhoto] = useState<string | null>(null);
 
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
-  const myParcels = parcels.filter(p => p.societyId === currentUser?.societyId);
-  const myVisitorRequests = visitorRequests.filter(v => v.societyId === currentUser?.societyId);
-  const myPasses = permanentPasses.filter(p => p.societyId === currentUser?.societyId);
+  const myParcels = (parcels || []).filter(p => p.societyId === currentUser?.societyId);
+  const myVisitorRequests = (visitorRequests || []).filter(v => v.societyId === currentUser?.societyId);
+  const myPasses = (permanentPasses || []).filter(p => p.societyId === currentUser?.societyId);
 
   // Hidden file inputs for hardware camera capture
   const visitorPhotoRef = useRef<HTMLInputElement>(null);
@@ -411,8 +411,12 @@ export default function Guard() {
                         <p className="text-[14px]">No recent visitors.</p>
                       </div>
                     ) : (
-                      myVisitorRequests.map(req => (
-                        <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-[16px] bg-white border border-border rounded-[8px] gap-4 transition-all">
+                      <>
+                        <p className="text-[10px] text-text-muted mb-2 font-semibold uppercase tracking-wider italic">
+                          Showing recent {Math.min(myVisitorRequests.length, 50)} of {myVisitorRequests.length} logs
+                        </p>
+                        {myVisitorRequests.slice(0, 50).map(req => (
+                          <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-[16px] bg-white border border-border rounded-[8px] gap-4 transition-all">
                           <div className="flex items-center gap-[16px]">
                             <div className="relative shrink-0">
                               <img 
@@ -470,7 +474,8 @@ export default function Guard() {
                             )}
                           </div>
                         </div>
-                      ))
+                        ))}
+                      </>
                     )}
                   </div>
                 </CardContent>

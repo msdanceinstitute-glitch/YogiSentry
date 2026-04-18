@@ -63,17 +63,17 @@ export default function Secretary() {
   const [staffRole, setStaffRole] = useState<'GUARD' | 'HOUSEKEEPING' | 'SECRETARY'>('GUARD');
   const [staffLoginId, setStaffLoginId] = useState('');
 
-  const myDues = maintenanceDues.filter(m => m.societyId === currentUser?.societyId);
+  const myDues = (maintenanceDues || []).filter(m => m.societyId === currentUser?.societyId);
   const totalCollected = myDues.filter(m => m.status === 'PAID').reduce((acc, m) => acc + m.amount, 0);
   const totalDue = myDues.filter(m => m.status === 'UNPAID').reduce((acc, m) => acc + m.amount, 0);
-  const totalExpenses = expenses.filter(e => e.societyId === currentUser?.societyId).reduce((acc, e) => acc + e.amount, 0);
+  const totalExpenses = (expenses || []).filter(e => e.societyId === currentUser?.societyId).reduce((acc, e) => acc + e.amount, 0);
 
-  const currentNotices = notices.filter(n => n.societyId === currentUser?.societyId);
-  const currentDues = maintenanceDues.filter(d => d.societyId === currentUser?.societyId);
-  const currentExpenses = expenses.filter(e => e.societyId === currentUser?.societyId);
-  const currentComplaints = complaints.filter(c => c.societyId === currentUser?.societyId);
+  const currentNotices = (notices || []).filter(n => n.societyId === currentUser?.societyId);
+  const currentDues = (maintenanceDues || []).filter(d => d.societyId === currentUser?.societyId);
+  const currentExpenses = (expenses || []).filter(e => e.societyId === currentUser?.societyId);
+  const currentComplaints = (complaints || []).filter(c => c.societyId === currentUser?.societyId);
 
-  const staffMembers = users.filter(u => u.societyId === currentUser?.societyId && (u.role === 'GUARD' || u.role === 'HOUSEKEEPING' || u.role === 'SECRETARY'));
+  const staffMembers = (users || []).filter(u => u.societyId === currentUser?.societyId && (u.role === 'GUARD' || u.role === 'HOUSEKEEPING' || u.role === 'SECRETARY'));
   const openComplaints = currentComplaints.filter(c => c.status === 'OPEN').length;
 
   const handleAddNotice = () => {
@@ -122,7 +122,7 @@ export default function Secretary() {
     const amount = Number(maintenanceAmount);
     if (isNaN(amount) || amount <= 0) return alert("Valid amount required");
     
-    const residents = users.filter(u => u.societyId === currentUser?.societyId && u.role === 'RESIDENT');
+    const residents = (users || []).filter(u => u.societyId === currentUser?.societyId && u.role === 'RESIDENT');
     if (residents.length === 0) return alert("No residents found to bill.");
     
     let generated = 0;
@@ -172,7 +172,7 @@ export default function Secretary() {
   }
 
   if (currentTab === 'reports') {
-    const socActivity = activityLogs?.filter(l => l.societyId === currentUser?.societyId) || [];
+    const socActivity = (activityLogs || []).filter(l => l.societyId === currentUser?.societyId);
     return (
       <div className="space-y-6 fade-in">
         <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-border shadow-sm">
@@ -208,7 +208,7 @@ export default function Secretary() {
           </Card>
 
           <Card className="border-border shadow-sm">
-            <CardHeader><CardTitle>Branding & Logo</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Branding & Payment</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 bg-slate-100 rounded-lg flex items-center justify-center border-2 border-dashed border-slate-300 overflow-hidden">
@@ -219,11 +219,25 @@ export default function Secretary() {
                   )}
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900">Society Logo</h4>
-                  <p className="text-xs text-slate-500">Visible on Resident Dashboard & Passes.</p>
+                  <h4 className="text-sm font-bold text-slate-900">Society Branding</h4>
+                  <p className="text-xs text-slate-500">Logo visible on dashboard & passes.</p>
                 </div>
               </div>
-              <Input type="file" accept="image/*" onChange={handleLogoUpload} className="text-xs" />
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700">Update Logo</label>
+                <Input type="file" accept="image/*" onChange={handleLogoUpload} className="text-xs" />
+              </div>
+              <div className="space-y-2 pt-2 border-t">
+                <label className="text-xs font-semibold text-slate-700">Society UPI ID (for Maintenance)</label>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="e.g. society@upi" 
+                    value={currentSociety?.upiId || ''} 
+                    onChange={(e) => updateSociety(currentUser!.societyId!, { upiId: e.target.value })}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 italic">This UPI ID is used for resident maintenance payment QR codes.</p>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -232,8 +246,8 @@ export default function Secretary() {
   }
 
   if (currentTab === 'facilities') {
-    const pendingClub = clubhouseBookings.filter(b => b.societyId === currentUser?.societyId && b.status === 'PENDING');
-    const pendingEvents = eventRequests.filter(e => e.societyId === currentUser?.societyId && e.status === 'PENDING');
+    const pendingClub = (clubhouseBookings || []).filter(b => b.societyId === currentUser?.societyId && b.status === 'PENDING');
+    const pendingEvents = (eventRequests || []).filter(e => e.societyId === currentUser?.societyId && e.status === 'PENDING');
 
     return (
       <div className="space-y-6 fade-in">
@@ -582,11 +596,15 @@ export default function Secretary() {
         <Card className="shadow-none border border-border bg-gradient-to-br from-white to-gray-50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-text-muted">Staff Active</h3>
-              <Users className="w-5 h-5 text-blue-500" />
+              <h3 className="font-semibold text-text-muted">Platform Validity</h3>
+              <ShieldAlert className={`w-5 h-5 ${currentSociety?.subscriptionActive && (!currentSociety?.subscriptionExpiry || new Date(currentSociety.subscriptionExpiry) > new Date()) ? 'text-success' : 'text-danger'}`} />
             </div>
-            <p className="text-3xl font-bold text-blue-600">{staffMembers.length}</p>
-            <p className="text-sm text-text-muted mt-2">Guards & HK in roster</p>
+            <p className={`text-[15px] font-bold ${currentSociety?.subscriptionActive && (!currentSociety?.subscriptionExpiry || new Date(currentSociety.subscriptionExpiry) > new Date()) ? 'text-success' : 'text-danger'}`}>
+              {currentSociety?.subscriptionActive && (!currentSociety?.subscriptionExpiry || new Date(currentSociety.subscriptionExpiry) > new Date()) ? 'ACTIVE ACCESS' : 'SUBSCRIPTION EXPIRED'}
+            </p>
+            <p className="text-sm text-text-muted mt-2">
+              Valid until: {currentSociety?.subscriptionExpiry ? format(new Date(currentSociety.subscriptionExpiry), 'MMM dd, yyyy') : 'No PO Found'}
+            </p>
           </CardContent>
         </Card>
       </div>

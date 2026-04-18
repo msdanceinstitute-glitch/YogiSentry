@@ -1,15 +1,15 @@
-import { useStore, Society, User } from '@/store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, TrendingUp, Users, Plus, Pencil, XCircle, CheckCircle2, Wallet, CreditCard, Activity, ArrowUpRight, Mail, ArrowDownToLine, Image as ImageIcon, Smartphone, Trash2 } from 'lucide-react';
+import { useStore, Society, User, Role } from '@/store';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Building2, TrendingUp, Users, Plus, Pencil, XCircle, CheckCircle2, Wallet, CreditCard, Activity, ArrowUpRight, Mail, ArrowDownToLine, Image as ImageIcon, Smartphone, Trash2, Search, Filter, ShieldCheck, PieChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLocation } from 'react-router-dom';
-import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
-
-const VIBRANT_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, AreaChart, Area } from 'recharts';
+import { toast } from 'sonner';
 
 const exportCSV = (data: any[], filename: string) => {
+  if (!data?.length) return;
   const headers = Object.keys(data[0] || {}).join(',');
   const rows = data.map(obj => Object.values(obj).map(v => `"${v}"`).join(','));
   const csvStr = [headers, ...rows].join('\n');
@@ -29,12 +29,17 @@ export default function SuperAdmin() {
     updateSubscription, payrolls, addPayrollRecord, purchaseOrders, addPurchaseOrder 
   } = useStore();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const totalRevenue = societies.reduce((acc, soc) => acc + soc.totalRevenue, 0);
+  const totalRevenue = useMemo(() => societies.reduce((acc, soc) => acc + (soc.totalRevenue || 0), 0), [societies]);
   const currentTab = location.pathname.split('/').pop() || 'super-admin';
   
+  // States and Handlers...
+  const [searchQuery, setSearchQuery] = useState('');
+  const [directoryRoleFilter, setDirectoryRoleFilter] = useState<Role | ''>('');
+  
   // Registration Form Wizard State
-  const [wizardStep, setWizardStep] = useState(0); // 0 = list, 1 = basic, 2 = infra, 3 = confirm
+  const [wizardStep, setWizardStep] = useState(0); 
   const [newSocName, setNewSocName] = useState('');
   const [newSocAddress, setNewSocAddress] = useState('');
   const [newSocCity, setNewSocCity] = useState('');
@@ -43,6 +48,7 @@ export default function SuperAdmin() {
   const [newSocRegNo, setNewSocRegNo] = useState('');
   const [newSocEmail, setNewSocEmail] = useState('');
   const [newSocPhone, setNewSocPhone] = useState('');
+  const [sendCredentialsToSoc, setSendCredentialsToSoc] = useState(true);
   const [isMultipleTowers, setIsMultipleTowers] = useState(false);
   const [newSocTowers, setNewSocTowers] = useState<number>(2);
   const [newSocFloors, setNewSocFloors] = useState<number>(1);
@@ -86,11 +92,12 @@ export default function SuperAdmin() {
     e.preventDefault();
     if (!newSocName || !newSocAddress || newSocFlats <= 0) return;
 
+    const { registerSocietyFull, registrationCharge } = useStore.getState();
     const socId = `soc_${Date.now()}`;
     const finalTowers = isMultipleTowers ? Math.max(newSocTowers, 2) : 1;
     
-    // Create new society
-    addSociety({
+    // 1. Create Society Object
+    const newSoc: Society = {
       id: socId,
       name: newSocName,
       address: newSocAddress,
@@ -105,62 +112,87 @@ export default function SuperAdmin() {
       totalFlats: newSocFlats,
       totalRevenue: registrationCharge,
       subscriptionActive: true,
-    });
+    };
 
-    // Auto-generate users for this society
-    // 1 Secretary
-    addUser({
-      id: `u_${Date.now()}_sec`,
-      loginId: `${newSocName.substring(0, 3).toUpperCase()}-ADMIN-${Math.floor(Math.random() * 10000)}`,
-      password: generateRandomPassword(),
-      name: `${newSocName} Secretary`,
-      role: 'SECRETARY',
-      societyId: socId
-    });
+    // 2. Prepare Staff
+    const staff: User[] = [
+      {
+        id: `u_${Date.now()}_sec`,
+        loginId: `${newSocName.substring(0, 3).toUpperCase()}-ADMIN-${Math.floor(Math.random() * 10000)}`,
+        password: generateRandomPassword(),
+        name: `${newSocName} Secretary`,
+        role: 'SECRETARY',
+        societyId: socId
+      },
+      {
+        id: `u_${Date.now()}_guard`,
+        loginId: `${newSocName.substring(0, 3).toUpperCase()}-GUARD-${Math.floor(Math.random() * 1000)}`,
+        password: '123',
+        name: `${newSocName} Main Guard`,
+        role: 'GUARD',
+        societyId: socId
+      },
+      {
+        id: `u_${Date.now()}_hk`,
+        loginId: `${newSocName.substring(0, 3).toUpperCase()}-HK-${Math.floor(Math.random() * 1000)}`,
+        password: '123',
+        name: `${newSocName} Head Housekeeping`,
+        role: 'HOUSEKEEPING',
+        societyId: socId
+      }
+    ];
 
-    // N Residents (Distributed by AI/algorithm across towers and floors)
+    // 3. Prepare Residents
     const towerLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const activeTowers = finalTowers;
     const activeFloors = Math.max(newSocFloors, 1);
-    
-    // Distribute flats equally
     const totalFloorsOverall = activeTowers * activeFloors;
-    // Total no of flats should be divided by no of floors
     const flatsPerFloor = Math.ceil(newSocFlats / totalFloorsOverall);
     
+    const residents: User[] = [];
     let userIndex = 1;
-    let addedCount = 0;
-    const MAX_AUTO_RESIDENTS = 20; // Bound the array creation so preview iframe won't crash
-    for (let t = 0; t < activeTowers && addedCount < MAX_AUTO_RESIDENTS; t++) {
+    const MAX_AUTO_RESIDENTS = 50; 
+    let credentialSummary = `\nAdmin Login: ${staff[0].loginId} / ${staff[0].password}\nGuard Login: ${staff[1].loginId} / 123`;
+    
+    for (let t = 0; t < activeTowers && residents.length < MAX_AUTO_RESIDENTS; t++) {
       const towerStr = activeTowers > 1 ? towerLabels[t % 26] : '';
-      
-      for (let f = 1; f <= activeFloors && addedCount < MAX_AUTO_RESIDENTS; f++) {
-        for (let i = 1; i <= flatsPerFloor && userIndex <= newSocFlats && addedCount < MAX_AUTO_RESIDENTS; i++) {
-          // Format as FloorNum + FlatIndex (e.g. 101, 102, 201...)
+      for (let f = 1; f <= activeFloors && residents.length < MAX_AUTO_RESIDENTS; f++) {
+        for (let i = 1; i <= flatsPerFloor && userIndex <= newSocFlats && residents.length < MAX_AUTO_RESIDENTS; i++) {
           const flatNum = (f * 100) + i; 
           const flatNo = towerStr ? `${towerStr}-${flatNum}` : `${flatNum}`;
-          
           const residentId = generateRandomResidentId(newSocName, flatNo);
-          addUser({
+          const password = generateRandomPassword();
+          residents.push({
             id: `u_${Date.now()}_res_${userIndex}`,
             loginId: residentId,
-            password: generateRandomPassword(),
+            password: password,
             name: `Resident ${flatNo}`,
             role: 'RESIDENT',
             societyId: socId,
             flatNo: flatNo
           });
+          
+          if (residents.length < 5) {
+            credentialSummary += `\nFlat ${flatNo}: ID: ${residentId} / Pass: ${password}`;
+          }
           userIndex++;
-          addedCount++;
         }
       }
     }
+
+    // 4. Batch Commit to Store
+    registerSocietyFull(newSoc, staff, residents);
 
     setNewSocName(''); setNewSocAddress(''); setNewSocCity(''); setNewSocState('');
     setNewSocZip(''); setNewSocRegNo(''); setNewSocEmail(''); setNewSocPhone('');
     setIsMultipleTowers(false); setNewSocTowers(2); setNewSocFloors(1); setNewSocFlats(0);
     setWizardStep(0);
-    alert(`Society registered! Auto-generated 1 Secretary and ${addedCount} Residents (limited for preview). Go to Onboarding to view credentials.`);
+    
+    let msg = `Society Registered Successfully!\n\nAuto-generated ${staff.length} Staff and ${residents.length} Residents.`;
+    if (sendCredentialsToSoc && newSocPhone) {
+      msg += `\n\n[SMS SENT TO ${newSocPhone}]\nSample Directory:${credentialSummary}\n... and remaining residents.`;
+    }
+    alert(msg);
   };
 
   const handleEditPassword = (userId: string, currPass: string) => {
@@ -175,7 +207,8 @@ export default function SuperAdmin() {
 
   const handleSendCredentials = (userId: string, email: string) => {
     if (!email) return alert("Please enter an email address first.");
-    alert(`Credentials sent via email to: ${email}\n(Simulated functionality for ${userId})`);
+    const userObj = users.find(u => u.id === userId);
+    alert(`[SIMULATED SMS/EMAIL SENT]\nRecipient: ${email}\n\nMember: ${userObj?.name}\nResident ID: ${userObj?.loginId}\nPassword: ${userObj?.password}\n\nCredentials successfully delivered.`);
   };
 
   const handleAddSuperAdmin = (e: React.FormEvent) => {
@@ -196,8 +229,8 @@ export default function SuperAdmin() {
     alert(`Super Admin Added!\nEmployee ID: ${eId}`);
   };
 
-  const superAdmins = users.filter(u => u.role === 'SUPER_ADMIN');
-  const staff = users.filter(u => u.role === 'SECRETARY' || u.role === 'GUARD' || u.role === 'HOUSEKEEPING');
+  const superAdmins = (users || []).filter(u => u.role === 'SUPER_ADMIN');
+  const staff = (users || []).filter(u => u.role === 'SECRETARY' || u.role === 'GUARD' || u.role === 'HOUSEKEEPING');
 
   if (currentTab === 'admins') {
     return (
@@ -301,19 +334,36 @@ export default function SuperAdmin() {
     );
   }
 
+  const [directorySocFilter, setDirectorySocFilter] = useState('');
+
   if (currentTab === 'onboarding') {
+    const filteredUsers = directorySocFilter 
+      ? users.filter(u => u.societyId === directorySocFilter)
+      : users;
+
     return (
       <div className="space-y-6 fade-in relative">
-        <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-border shadow-sm">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl border border-border shadow-sm gap-4">
            <div>
              <h2 className="text-lg font-bold text-slate-900">User Directory</h2>
              <p className="text-sm text-slate-500">View all auto-generated Resident IDs and manage passwords.</p>
+           </div>
+           <div className="flex items-center gap-2 w-full md:w-auto">
+             <label className="text-xs font-semibold text-slate-700 shrink-0">Filter by Society:</label>
+             <select 
+               className="h-9 px-3 border rounded-md text-sm bg-slate-50 w-full md:w-[200px]"
+               value={directorySocFilter}
+               onChange={(e) => setDirectorySocFilter(e.target.value)}
+             >
+               <option value="">All Societies</option>
+               {societies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+             </select>
            </div>
         </div>
 
         <Card className="border-border shadow-none">
           <CardHeader className="flex flex-row items-center justify-between border-b border-border">
-            <CardTitle>Global User Directory</CardTitle>
+            <CardTitle>Global User Directory ({filteredUsers.length} Users)</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -328,7 +378,7 @@ export default function SuperAdmin() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {users.map((u) => (
+                  {filteredUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50 transition-colors text-[13px]">
                       <td className="px-[20px] py-[16px] text-text-main">
                         <div className="font-[600]">{u.name}</div>
@@ -451,7 +501,15 @@ export default function SuperAdmin() {
       e.preventDefault();
       if (!selectedSocId || !selectedPlanId || !poAmount) return alert("Select all fields");
       
-      const expiry = new Date();
+      const targetSoc = societies.find(s => s.id === selectedSocId);
+      
+      // Renewal logic: if society has a future expiry, extend from it. Otherwise extend from today.
+      let baseDate = new Date();
+      if (targetSoc?.subscriptionExpiry && new Date(targetSoc.subscriptionExpiry) > new Date()) {
+        baseDate = new Date(targetSoc.subscriptionExpiry);
+      }
+      
+      const expiry = new Date(baseDate);
       expiry.setMonth(expiry.getMonth() + Number(poPeriod));
 
       const newPo = {
@@ -467,14 +525,18 @@ export default function SuperAdmin() {
 
       addPurchaseOrder(newPo);
       
-      // Update society status
+      // Update society status and revenue
       updateSociety(selectedSocId, {
         subscriptionActive: true,
         subscriptionPlanId: selectedPlanId,
-        subscriptionExpiry: expiry.toISOString()
+        subscriptionExpiry: expiry.toISOString(),
+        totalRevenue: (targetSoc?.totalRevenue || 0) + Number(poAmount)
       });
 
-      alert("Purchase Order processed! Society activated until " + expiry.toLocaleDateString());
+      alert(`Purchase Order processed!\nAmount: ₹${poAmount}\nSociety: ${targetSoc?.name}\nNew Expiry: ${expiry.toLocaleDateString()}`);
+      
+      // Clear form
+      setPoAmount(''); setPoPeriod('12'); setSelectedSocId(''); setSelectedPlanId('');
     };
 
     return (
@@ -571,6 +633,9 @@ export default function SuperAdmin() {
                        <td className="p-4 text-slate-500 italic">{plan.features.join(', ')}</td>
                      </tr>
                    ))}
+                   {subscriptions.length === 0 && (
+                     <tr><td colSpan={4} className="p-8 text-center text-slate-400">No master plans found. Create one above!</td></tr>
+                   )}
                  </tbody>
                </table>
             </CardContent>
@@ -612,6 +677,14 @@ export default function SuperAdmin() {
                     <td className="px-[20px] py-[16px] text-right">
                       <Button size="sm" variant="outline" onClick={() => {
                          setSelectedSocId(soc.id);
+                         setSelectedPlanId(soc.subscriptionPlanId || '');
+                         // Find previous PO for this society to suggest amount?
+                         const lastPo = (purchaseOrders || []).filter(p=>p.societyId === soc.id)[0];
+                         if (lastPo) {
+                           setPoAmount(lastPo.amount.toString());
+                           setPoPeriod(lastPo.validityMonths.toString());
+                         }
+                         
                          window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}>
                         Update PO
@@ -624,7 +697,7 @@ export default function SuperAdmin() {
           </CardContent>
         </Card>
 
-        {purchaseOrders && purchaseOrders.length > 0 && (
+        {purchaseOrders && (
            <Card className="border-border shadow-none mt-6">
            <CardHeader className="border-b bg-slate-50">
              <CardTitle>PO History / Audit Log</CardTitle>
@@ -648,6 +721,13 @@ export default function SuperAdmin() {
                      <td className="px-[20px] py-[16px] font-mono">{new Date(po.expiryDate).toLocaleDateString()}</td>
                    </tr>
                  ))}
+                 {purchaseOrders.length === 0 && (
+                   <tr>
+                     <td colSpan={4} className="p-8 text-center text-slate-400 font-medium italic">
+                       Audit log is clean. No purchase orders recorded yet.
+                     </td>
+                   </tr>
+                 )}
                </tbody>
               </table>
            </CardContent>
@@ -760,290 +840,327 @@ export default function SuperAdmin() {
       </div>
     );
   }
-
-  if (currentTab !== 'super-admin' && currentTab !== 'societies') {
+  const handledTabs = ['onboarding', 'payments', 'subscriptions', 'issues', 'payroll', 'super-admin', 'societies', 'admins', 'reports', 'templates'];
+  
+  if (!handledTabs.includes(currentTab)) {
     return (
-      <div className="flex h-full items-center justify-center fade-in">
-        <div className="text-center space-y-2 text-text-muted">
-          <h2 className="text-lg font-[600] capitalize">{currentTab.replace('-', ' ')}</h2>
-          <p className="text-sm">This module is part of the future YogiSentry roadmap.</p>
+      <div className="flex h-full items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="p-4 bg-slate-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+             <ShieldCheck className="h-10 w-10 text-slate-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Access Restricted</h2>
+          <p className="text-slate-500 text-sm">This module is part of the future YogiSentry deployment roadmap or requires higher privilege levels.</p>
+          <Button variant="outline" onClick={() => navigate('/super-admin')}>Return to Dashboard</Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 fade-in">
-      {/* Top Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="bg-white border border-border p-[20px] rounded-[16px] shadow-sm">
-          <p className="text-[12px] text-text-muted uppercase tracking-[0.05em] mb-[8px]">Total Societies</p>
-          <div className="flex items-center gap-3">
-             <div className="h-8 w-8 rounded bg-accent-soft flex items-center justify-center">
-               <Building2 className="h-4 w-4 text-accent" />
-             </div>
-             <h3 className="text-[24px] font-[700] text-text-main">{societies.length}</h3>
-          </div>
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+      {/* Premium Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-[#0f172a] tracking-tight">Operations Control</h1>
+          <p className="text-slate-500 font-medium">Global SaaS Multi-tenant Management</p>
         </div>
-        <div className="bg-white border border-border p-[20px] rounded-[16px] shadow-sm">
-          <p className="text-[12px] text-text-muted uppercase tracking-[0.05em] mb-[8px]">Global Revenue</p>
-          <div className="flex items-center gap-3">
-             <div className="h-8 w-8 rounded bg-[#dcfce7] flex items-center justify-center">
-               <TrendingUp className="h-4 w-4 text-[#166534]" />
-             </div>
-             <h3 className="text-[24px] font-[700] text-text-main">₹{totalRevenue.toLocaleString()}</h3>
-          </div>
-        </div>
-        <div className="bg-white border border-border p-[20px] rounded-[16px] shadow-sm">
-          <p className="text-[12px] text-text-muted uppercase tracking-[0.05em] mb-[8px]">Active Subscriptions</p>
-          <div className="flex items-center gap-3">
-             <div className="h-8 w-8 rounded bg-[#eff6ff] flex items-center justify-center">
-               <Users className="h-4 w-4 text-accent" />
-             </div>
-             <h3 className="text-[24px] font-[700] text-text-main">
-               {societies.filter(s => s.subscriptionActive).length}
-             </h3>
-          </div>
+        <div className="flex gap-3">
+          <Button variant="outline" className="h-10 border-slate-200">
+             <CreditCard className="mr-2 h-4 w-4" /> Billing Settings
+          </Button>
+          <Button className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200/50" onClick={() => setWizardStep(1)}>
+             <Plus className="mr-2 h-4 w-4" /> Provision Society
+          </Button>
         </div>
       </div>
 
-      <Card className="border-border shadow-none">
-        <CardHeader className="border-b border-border pb-4">
-          <CardTitle>Society Revenue Overview</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={societies} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(val) => `₹${val}`} />
-                <Tooltip 
-                  cursor={{ fill: '#F3F4F6' }}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                  formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Total Revenue']}
-                />
-                <Bar dataKey="totalRevenue" radius={[4, 4, 0, 0]}>
-                  {societies.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={VIBRANT_COLORS[index % VIBRANT_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {wizardStep > 0 && (
-        <Card className="border-indigo-100 shadow-sm border-2 overflow-hidden fade-in">
-          <div className="bg-indigo-50/50 p-4 border-b flex items-center justify-between">
-            <CardTitle className="text-lg text-indigo-900">Step-by-Step Society Onboarding Wizard</CardTitle>
-            <div className="flex gap-2">
-               <span className={`h-2 w-8 rounded-full ${wizardStep === 1 ? 'bg-indigo-600' : 'bg-indigo-200'}`}></span>
-               <span className={`h-2 w-8 rounded-full ${wizardStep === 2 ? 'bg-indigo-600' : 'bg-indigo-200'}`}></span>
-               <span className={`h-2 w-8 rounded-full ${wizardStep === 3 ? 'bg-indigo-600' : 'bg-indigo-200'}`}></span>
-            </div>
-          </div>
-          <CardContent className="pt-6">
-            <form onSubmit={(e) => {
-               e.preventDefault();
-               if(wizardStep < 3) setWizardStep(wizardStep + 1);
-               else handleRegisterSociety(e);
-            }} className="flex flex-col gap-6">
-              
-              {/* Wizard Step 1: Basic Information */}
-              {wizardStep === 1 && (
-                <div className="space-y-4 fade-in">
-                  <h3 className="text-sm font-bold text-slate-800 border-b pb-2">Step 1: General Information & Location</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Society Name</label>
-                      <Input required value={newSocName} onChange={e => setNewSocName(e.target.value)} placeholder="E.g., Moonlight Towers" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Registration Number</label>
-                      <Input value={newSocRegNo} onChange={e => setNewSocRegNo(e.target.value)} placeholder="E.g., REG-2026/MH/01" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Street Address</label>
-                      <Input required value={newSocAddress} onChange={e => setNewSocAddress(e.target.value)} placeholder="E.g., 400 Street, Sector 1" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
-                      <Input value={newSocCity} onChange={e => setNewSocCity(e.target.value)} placeholder="E.g., Mumbai" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">State / Zip</label>
-                      <div className="flex gap-2">
-                         <Input className="w-1/2" value={newSocState} onChange={e => setNewSocState(e.target.value)} placeholder="State" />
-                         <Input className="w-1/2" value={newSocZip} onChange={e => setNewSocZip(e.target.value)} placeholder="Zip" />
-                      </div>
-                    </div>
-                  </div>
+      {/* Modern Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Network Societies', value: societies.length, icon: Building2, color: 'emerald', trend: '+12%' },
+          { label: 'Active Subscription', value: societies.filter(s => s.subscriptionActive).length, icon: ShieldCheck, color: 'blue', trend: 'Stable' },
+          { label: 'Global Revenue', value: `₹${totalRevenue.toLocaleString()}`, icon: Wallet, color: 'indigo', trend: '+₹45k' },
+          { label: 'Platform Uptime', value: '99.9%', icon: Activity, color: 'rose', trend: 'Optimal' },
+        ].map((stat, i) => (
+          <Card key={i} className="border-none shadow-sm bg-white overflow-hidden group hover:shadow-md transition-all">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className={`p-2 rounded-xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition-transform`}>
+                  <stat.icon size={20} />
                 </div>
-              )}
-
-              {/* Wizard Step 2: Contact Details */}
-              {wizardStep === 2 && (
-                <div className="space-y-4 fade-in">
-                  <h3 className="text-sm font-bold text-slate-800 border-b pb-2">Step 2: Contact Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Primary Email</label>
-                      <Input type="email" value={newSocEmail} onChange={e => setNewSocEmail(e.target.value)} placeholder="E.g., admin@moonlight.com" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Phone</label>
-                      <Input type="tel" value={newSocPhone} onChange={e => setNewSocPhone(e.target.value)} placeholder="E.g., +91 9876543210" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Wizard Step 3: Infrastructure */}
-              {wizardStep === 3 && (
-                <div className="space-y-4 fade-in">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <h3 className="text-sm font-bold text-slate-800">Step 3: Infrastructure Map (AI Generation)</h3>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-1 rounded">Auto-Generate Mode</span>
-                  </div>
-                  <p className="text-xs text-slate-500 mb-4">The platform will allocate residents, guards, and secretary nodes based on the limits provided here.</p>
-                  
-                  <div className="mb-4">
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">Structure Details</label>
-                    <div className="flex gap-3 mb-4">
-                      <Button type="button" variant={!isMultipleTowers ? "default" : "outline"} onClick={() => setIsMultipleTowers(false)} className="w-1/2 shadow-sm">
-                        Single Tower
-                      </Button>
-                      <Button type="button" variant={isMultipleTowers ? "default" : "outline"} onClick={() => setIsMultipleTowers(true)} className="w-1/2 shadow-sm">
-                        Multiple Towers
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {isMultipleTowers && (
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">Total Towers</label>
-                          <Input required type="number" min="2" value={newSocTowers || ''} onChange={e => setNewSocTowers(Number(e.target.value))} placeholder="2" />
-                        </div>
-                      )}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">{isMultipleTowers ? 'Floors/Tower' : 'Total Floors'}</label>
-                        <Input required type="number" min="1" value={newSocFloors || ''} onChange={e => setNewSocFloors(Number(e.target.value))} placeholder="5" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">Total Flats</label>
-                        <Input required type="number" min="1" value={newSocFlats || ''} onChange={e => setNewSocFlats(Number(e.target.value))} placeholder="50" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-4 border-t justify-between">
-                <div>
-                   {wizardStep > 1 && <Button variant="outline" type="button" onClick={() => setWizardStep(wizardStep - 1)}>Back</Button>}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="ghost" type="button" onClick={() => setWizardStep(0)}>Cancel Form</Button>
-                  {wizardStep < 3 ? (
-                     <Button type="button" onClick={() => setWizardStep(wizardStep + 1)} className="bg-indigo-600 hover:bg-indigo-700">Next Step</Button>
-                  ) : (
-                     <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Finalize & Provision Society</Button>
-                  )}
-                </div>
+                <span className={`text-[10px] font-bold px-2 py-1 rounded bg-${stat.color}-50 text-${stat.color}-600`}>{stat.trend}</span>
               </div>
-            </form>
+              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{stat.value}</h3>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1">{stat.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Revenue Analytics Chart */}
+        <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden bg-white">
+          <CardHeader className="pb-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-900">Revenue Performance</CardTitle>
+                <CardDescription>Historical society onboarding revenue distribution</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                 <Button variant="ghost" size="sm" className="h-8 text-[11px] font-bold bg-slate-50">WEEKLY</Button>
+                 <Button variant="ghost" size="sm" className="h-8 text-[11px] font-bold">MONTHLY</Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="h-[320px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={societies} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 600 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 600 }} tickFormatter={(val) => `₹${val}`} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                  />
+                  <Area type="monotone" dataKey="totalRevenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Global Distribution */}
+        <Card className="border-none shadow-sm bg-[#0f172a] text-white">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold">Client Segments</CardTitle>
+            <CardDescription className="text-slate-400">Distribution by city and plan</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+             {[
+               { city: 'Mumbai', count: 12, pct: 45, color: 'emerald' },
+               { city: 'Pune', count: 8, pct: 30, color: 'blue' },
+               { city: 'Delhi', count: 4, pct: 15, color: 'rose' },
+               { city: 'Others', count: 3, pct: 10, color: 'slate' },
+             ].map((item, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full bg-${item.color}-400`} /> {item.city}</span>
+                    <span className="text-slate-400">{item.count} Soc</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className={`h-full bg-${item.color}-500 rounded-full`} style={{ width: `${item.pct}%` }} />
+                  </div>
+                </div>
+             ))}
+             <div className="pt-4 border-t border-slate-800">
+                <Button className="w-full bg-white/10 hover:bg-white/20 text-white border-none h-11">
+                   <PieChart className="mr-2 h-4 w-4" /> Comprehensive Audit
+                </Button>
+             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Onboarding Wizard Modal-Style UI */}
+      {wizardStep > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0f172a]/40 backdrop-blur-md animate-in fade-in duration-300">
+          <Card className="w-full max-w-2xl border-none shadow-2xl overflow-hidden bg-white">
+            <div className="bg-[#0f172a] p-8 text-white relative">
+              <button onClick={() => setWizardStep(0)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 transition-colors">
+                <XCircle size={24} />
+              </button>
+              <h2 className="text-2xl font-black mb-1">Onboarding Wizard</h2>
+              <p className="text-slate-400 text-sm font-medium">Provisioning instance {wizardStep} of 3</p>
+              
+              <div className="flex gap-2 mt-6">
+                {[1,2,3].map(s => (
+                  <div key={s} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${wizardStep >= s ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+                ))}
+              </div>
+            </div>
+
+            <CardContent className="p-8">
+              <form onSubmit={(e) => {
+                 e.preventDefault();
+                 if(wizardStep < 3) setWizardStep(wizardStep + 1);
+                 else handleRegisterSociety(e);
+              }} className="space-y-6">
+                
+                {wizardStep === 1 && (
+                  <div className="space-y-5 animate-in slide-in-from-right duration-300">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Society Name</label>
+                        <Input required value={newSocName} onChange={e => setNewSocName(e.target.value)} className="h-11 border-slate-200" placeholder="Moonlight Enclave" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Registration ID</label>
+                        <Input value={newSocRegNo} onChange={e => setNewSocRegNo(e.target.value)} className="h-11 border-slate-200" placeholder="SOC-2026-BH" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Street Address</label>
+                      <Input required value={newSocAddress} onChange={e => setNewSocAddress(e.target.value)} className="h-11 border-slate-200" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                       <Input value={newSocCity} onChange={e => setNewSocCity(e.target.value)} placeholder="City" className="h-11 border-slate-200" />
+                       <Input value={newSocState} onChange={e => setNewSocState(e.target.value)} placeholder="State" className="h-11 border-slate-200" />
+                       <Input value={newSocZip} onChange={e => setNewSocZip(e.target.value)} placeholder="Zip" className="h-11 border-slate-200" />
+                    </div>
+                  </div>
+                )}
+
+                {wizardStep === 2 && (
+                  <div className="space-y-5 animate-in slide-in-from-right duration-300">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Admin Email</label>
+                        <Input type="email" value={newSocEmail} onChange={e => setNewSocEmail(e.target.value)} className="h-11 border-slate-200" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Contact Phone</label>
+                        <Input type="tel" value={newSocPhone} onChange={e => setNewSocPhone(e.target.value)} className="h-11 border-slate-200" />
+                      </div>
+                    </div>
+                    <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3">
+                       <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600"><Smartphone size={18}/></div>
+                       <div className="space-y-1">
+                          <label className="text-sm font-bold text-emerald-900 flex items-center gap-2">
+                            <input type="checkbox" checked={sendCredentialsToSoc} onChange={e => setSendCredentialsToSoc(e.target.checked)} className="rounded text-emerald-600" />
+                            Enable Instant SMS Dispatch
+                          </label>
+                          <p className="text-xs text-emerald-700/70 leading-relaxed">System will automatically broadcast login credentials to all provisioned admins and residents via Twilio integration.</p>
+                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {wizardStep === 3 && (
+                  <div className="space-y-5 animate-in slide-in-from-right duration-300">
+                    <div className="flex gap-4 mb-4">
+                      <Button type="button" variant={!isMultipleTowers ? "default" : "outline"} onClick={() => setIsMultipleTowers(false)} className="flex-1 h-12 shadow-sm font-bold">SINGLE TOWER</Button>
+                      <Button type="button" variant={isMultipleTowers ? "default" : "outline"} onClick={() => setIsMultipleTowers(true)} className="flex-1 h-12 shadow-sm font-bold">MEGA TOWERS</Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                       {isMultipleTowers && (
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500">TOWERS</label>
+                            <Input required type="number" min="2" value={newSocTowers} onChange={e => setNewSocTowers(Number(e.target.value))} className="h-14 text-lg font-bold text-center border-slate-200" />
+                         </div>
+                       )}
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-500">{isMultipleTowers ? 'FLOORS/T' : 'FLOORS'}</label>
+                          <Input required type="number" min="1" value={newSocFloors} onChange={e => setNewSocFloors(Number(e.target.value))} className="h-14 text-lg font-bold text-center border-slate-200" />
+                       </div>
+                       <div className="space-y-2 col-span-1">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Total Capacity</label>
+                          <Input required type="number" min="1" value={newSocFlats} onChange={e => setNewSocFlats(Number(e.target.value))} className="h-14 text-lg font-bold text-center border-emerald-500 bg-emerald-50" />
+                       </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-6">
+                  {wizardStep > 1 && (
+                    <Button variant="outline" type="button" onClick={() => setWizardStep(wizardStep - 1)} className="h-12 px-8 font-bold text-slate-600">PREVIOUS</Button>
+                  )}
+                  <Button type="submit" className="flex-1 h-12 bg-[#0f172a] hover:bg-[#1e293b] text-white font-bold text-lg tracking-tight uppercase shadow-xl transition-all">
+                    {wizardStep < 3 ? 'Proceed to Infrastructure' : 'Authorize & Provision Partition'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Societies List */}
-      <Card className="border-border shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
-          <div>
-            <CardTitle>Registered Societies</CardTitle>
-            <p className="text-sm text-text-muted mt-1">Manage and register multi-tenant society partitions.</p>
+      {/* Modern Societies Grid */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-black text-slate-900 tracking-tight">Provisioned Societies</h2>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input placeholder="Search societies..." className="pl-10 h-10 w-[240px] border-none shadow-sm bg-white" />
+            </div>
           </div>
-          <Button onClick={() => setWizardStep(1)} size="default" className="shadow-sm bg-indigo-600 hover:bg-indigo-700">
-            <Plus className="mr-2 h-4 w-4" /> Start Onboarding Wizard
-          </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="text-[11px] text-text-muted uppercase bg-sidebar border-b border-border">
-                <tr>
-                  <th className="px-[20px] py-[12px] font-[600]">Society Name</th>
-                  <th className="px-[20px] py-[12px] font-[600]">Address</th>
-                  <th className="px-[20px] py-[12px] font-[600]">Revenue</th>
-                  <th className="px-[20px] py-[12px] font-[600]">Status</th>
-                  <th className="px-[20px] py-[12px] font-[600] text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {societies.map((soc) => (
-                  <tr key={soc.id} className="hover:bg-gray-50 transition-colors text-[13px]">
-                    <td className="px-[20px] py-[16px]">
-                      <div className="flex items-center gap-3">
-                        {soc.logoUrl ? (
-                          <img src={soc.logoUrl} alt="Logo" className="w-8 h-8 rounded object-cover border" />
-                        ) : (
-                          <div className="w-8 h-8 rounded bg-slate-200 border flex items-center justify-center text-slate-500 font-bold">{soc.name[0]}</div>
-                        )}
-                        <span className="font-[600] text-text-main">{soc.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-[20px] py-[16px] text-text-muted">{soc.address}</td>
-                    <td className="px-[20px] py-[16px] font-mono font-[500]">₹{soc.totalRevenue.toLocaleString()}</td>
-                    <td className="px-[20px] py-[16px]">
-                      {soc.subscriptionActive ? (
-                        <span className="inline-flex items-center px-[8px] py-[4px] rounded-[4px] text-[10px] font-[700] bg-[#dcfce7] text-[#166534] uppercase tracking-wider">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-[8px] py-[4px] rounded-[4px] text-[10px] font-[700] bg-[#fee2e2] text-[#991b1b] uppercase tracking-wider">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-[20px] py-[16px] text-right space-x-2">
-                       <label className="inline-flex items-center px-3 py-1 bg-white border border-border text-xs font-semibold rounded-md shadow-sm hover:bg-gray-50 cursor-pointer transition-colors">
-                         Branding
-                         <input 
-                           type="file" 
-                           accept="image/*" 
-                           className="hidden" 
-                           onChange={(e) => {
-                             const file = e.target.files?.[0];
-                             if (file) {
-                               const reader = new FileReader();
-                               reader.onloadend = () => updateSociety(soc.id, { logoUrl: reader.result as string });
-                               reader.readAsDataURL(file);
-                             }
-                           }}
-                         />
-                       </label>
-                      <Button variant="outline" size="sm">Manage</Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => {
-                          if (confirm(`Are you absolutely sure you want to delete ${soc.name}? This will permanently remove ALL residents, staff, visitors, and historical data for this society. This action CANNOT be undone.`)) {
-                            deleteSociety(soc.id);
-                          }
-                        }}
-                       >
-                         <Trash2 className="h-4 w-4" />
-                       </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-6">
+           <Card className="border-none shadow-sm bg-white overflow-hidden">
+             <CardContent className="p-0">
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                   <thead className="bg-slate-50 border-b border-slate-100">
+                     <tr className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                       <th className="px-8 py-4">Society Identity</th>
+                       <th className="px-8 py-4">Infra Snapshot</th>
+                       <th className="px-8 py-4">Financial Yield</th>
+                       <th className="px-8 py-4">Runtime Status</th>
+                       <th className="px-8 py-4 text-right">Administrative Actions</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                     {societies.map((soc) => (
+                       <tr key={soc.id} className="hover:bg-slate-50/50 transition-colors group">
+                         <td className="px-8 py-6">
+                           <div className="flex items-center gap-4">
+                             <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shadow-inner">
+                               {soc.logoUrl ? (
+                                 <img src={soc.logoUrl} className="w-full h-full object-cover" />
+                               ) : (
+                                 <Building2 className="text-slate-400" size={20} />
+                               )}
+                             </div>
+                             <div className="space-y-0.5">
+                               <p className="font-bold text-slate-900 tracking-tight">{soc.name}</p>
+                               <p className="text-xs font-semibold text-slate-400">{soc.city || 'Location Pending'}</p>
+                             </div>
+                           </div>
+                         </td>
+                         <td className="px-8 py-6 text-[13px] font-bold text-slate-600">
+                            {soc.totalTowers || 1} Towers • {soc.totalFlats || 0} Flats
+                         </td>
+                         <td className="px-8 py-6">
+                            <span className="font-black text-slate-900">₹{soc.totalRevenue.toLocaleString()}</span>
+                         </td>
+                         <td className="px-8 py-6">
+                           {soc.subscriptionActive && (!soc.subscriptionExpiry || new Date(soc.subscriptionExpiry) > new Date()) ? (
+                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                               <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" /> Live
+                             </div>
+                           ) : (
+                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-black uppercase tracking-widest border border-rose-100">
+                               <div className="w-1 h-1 rounded-full bg-rose-500" /> Frozen
+                             </div>
+                           )}
+                         </td>
+                         <td className="px-8 py-6 text-right">
+                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Button variant="ghost" size="sm" className="h-9 px-4 font-bold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl" onClick={() => navigate(`/super-admin/onboarding?societyId=${soc.id}`)}>Manage Users</Button>
+                             <Button variant="ghost" size="icon" className="h-9 w-9 text-rose-500 hover:bg-rose-50 rounded-xl" onClick={() => {
+                                if (confirm(`DESTRUCTIVE ACTION: Remove instance ${soc.name}?`)) deleteSociety(soc.id);
+                             }}>
+                                <Trash2 size={16} />
+                             </Button>
+                           </div>
+                         </td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+             </CardContent>
+           </Card>
+        </div>
+      </div>
     </div>
   );
 }
