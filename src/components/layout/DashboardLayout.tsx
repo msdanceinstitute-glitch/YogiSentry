@@ -57,6 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           { icon: Users, label: 'Staff Mgmt', path: '/secretary/staff' },
           { icon: Wrench, label: 'Complaints', path: '/secretary/complaints' },
           { icon: FileText, label: 'Communication', path: '/secretary/communication' },
+          { icon: Building2, label: 'Facilities', path: '/secretary/facilities' },
           { icon: BarChart, label: 'Reports & QR', path: '/secretary/reports' },
           { icon: Mail, label: 'Templates', path: '/secretary/templates' },
         ];
@@ -79,6 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           { icon: Bell, label: 'Gate Alerts', path: '/resident' },
           { icon: FileText, label: 'Vehicles', path: '/resident/vehicles' },
           { icon: Wallet, label: 'Dues', path: '/resident/dues' },
+          { icon: Building2, label: 'Facilities', path: '/resident/facilities' },
           { icon: FileText, label: 'Communication', path: '/resident/communication' },
         ];
         break;

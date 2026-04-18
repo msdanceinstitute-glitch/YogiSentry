@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useStore } from '@/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,8 +34,17 @@ export default function Secretary() {
     addNotice,
     emailTemplates,
     updateEmailTemplate,
-    activityLogs
+    activityLogs,
+    clubhouseBookings,
+    updateClubhouseBookingStatus,
+    eventRequests,
+    updateEventRequestStatus,
+    societies,
+    updateSociety
   } = useStore();
+  
+  const currentSociety = societies.find(s => s.id === currentUser?.societyId);
+
   const location = useLocation();
   const currentTab = location.pathname.split('/').pop() || 'secretary';
 
@@ -51,7 +60,7 @@ export default function Secretary() {
 
   // Staff state
   const [staffName, setStaffName] = useState('');
-  const [staffRole, setStaffRole] = useState<'GUARD' | 'HOUSEKEEPING'>('GUARD');
+  const [staffRole, setStaffRole] = useState<'GUARD' | 'HOUSEKEEPING' | 'SECRETARY'>('GUARD');
   const [staffLoginId, setStaffLoginId] = useState('');
 
   const totalCollected = maintenanceDues.filter(m => m.status === 'PAID').reduce((acc, m) => acc + m.amount, 0);
@@ -87,7 +96,18 @@ export default function Secretary() {
     });
     setStaffName('');
     setStaffLoginId('');
-    alert("Staff member added successfully! Default password is 'password123'");
+    alert(`${staffRole === 'SECRETARY' ? 'Admin' : 'Staff'} member added successfully! Default password is 'password123'`);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && currentUser?.societyId) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateSociety(currentUser.societyId!, { logoUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleGenerateMaintenance = () => {
@@ -167,15 +187,87 @@ export default function Secretary() {
             <CardContent className="flex flex-col items-center">
               <div className="p-4 bg-white border rounded-xl shadow-inner mb-4">
                  <QRCodeSVG 
-                   value={`yogi://login?socId=${currentUser?.societyId}`}
+                   value={`https://yogisentry.app/login?socId=${currentUser?.societyId}`}
                    size={160}
                    bgColor={"#ffffff"}
                    fgColor={"#0f172a"}
                    level={"Q"}
                  />
               </div>
-              <p className="text-xs text-slate-500 text-center mb-4">Print this QR code and paste it at the gate or notice board. Residents can scan it to instantly open the YogiSentry mobile app or login page.</p>
-              <Button variant="outline" className="w-full"><QrCode className="w-4 h-4 mr-2"/> Print High-Res QR</Button>
+              <p className="text-xs text-slate-500 text-center mb-4">Join URL: https://yogisentry.app/login?socId={currentUser?.societyId}</p>
+              <Button variant="outline" className="w-full" onClick={() => window.print()}><QrCode className="w-4 h-4 mr-2"/> Print Resident QR</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border shadow-sm">
+            <CardHeader><CardTitle>Branding & Logo</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 bg-slate-100 rounded-lg flex items-center justify-center border-2 border-dashed border-slate-300 overflow-hidden">
+                  {currentSociety?.logoUrl ? (
+                    <img src={currentSociety.logoUrl} className="w-full h-full object-contain" />
+                  ) : (
+                    <Plus className="text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Society Logo</h4>
+                  <p className="text-xs text-slate-500">Visible on Resident Dashboard & Passes.</p>
+                </div>
+              </div>
+              <Input type="file" accept="image/*" onChange={handleLogoUpload} className="text-xs" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentTab === 'facilities') {
+    const pendingClub = clubhouseBookings.filter(b => b.societyId === currentUser?.societyId && b.status === 'PENDING');
+    const pendingEvents = eventRequests.filter(e => e.societyId === currentUser?.societyId && e.status === 'PENDING');
+
+    return (
+      <div className="space-y-6 fade-in">
+        <h2 className="text-xl font-bold text-slate-800">Facilities & Events Management</h2>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="border-border shadow-none">
+            <CardHeader className="border-b"><CardTitle>Clubhouse Bookings</CardTitle></CardHeader>
+            <CardContent className="pt-4 divide-y">
+              {pendingClub.length === 0 && <p className="text-sm text-slate-500 py-4">No pending bookings.</p>}
+              {pendingClub.map(b => (
+                <div key={b.id} className="py-4 flex justify-between items-center">
+                  <div>
+                    <h4 className="font-bold text-slate-900">{b.facilityName}</h4>
+                    <p className="text-xs text-slate-500">By Flat {b.flatNo} on {format(new Date(b.date), 'MMM dd')} ({b.timeSlot})</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="text-red-600 border-red-200" onClick={() => updateClubhouseBookingStatus(b.id, 'DECLINED')}>Deny</Button>
+                    <Button size="sm" onClick={() => updateClubhouseBookingStatus(b.id, 'APPROVED')}>Approve</Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border shadow-none">
+            <CardHeader className="border-b"><CardTitle>Event Requests</CardTitle></CardHeader>
+            <CardContent className="pt-4 divide-y">
+              {pendingEvents.length === 0 && <p className="text-sm text-slate-500 py-4">No pending events.</p>}
+              {pendingEvents.map(e => (
+                <div key={e.id} className="py-4 flex justify-between items-center">
+                  <div>
+                    <h4 className="font-bold text-slate-900">{e.title}</h4>
+                    <p className="text-xs text-slate-500">By Flat {e.flatNo} on {format(new Date(e.date), 'MMM dd')}</p>
+                    <p className="text-[11px] mt-1 italic text-slate-400">{e.description}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="text-red-600 border-red-200" onClick={() => updateEventRequestStatus(e.id, 'DECLINED')}>Deny</Button>
+                    <Button size="sm" onClick={() => updateEventRequestStatus(e.id, 'APPROVED')}>Approve</Button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
@@ -304,22 +396,32 @@ export default function Secretary() {
                     <div className="shrink-0 flex items-center space-x-2">
                       {c.status === 'OPEN' ? (
                         <div className="bg-gray-50 border border-border p-3 rounded-lg flex items-center space-x-2">
-                          <Input 
-                            placeholder="Proof URL..." 
-                            className="h-8 w-40 text-xs"
-                            value={resPicUrl}
-                            onChange={(e) => setResPicUrl(e.target.value)}
-                          />
+                          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 border rounded-md text-xs hover:bg-gray-50 transition-colors">
+                            <Upload className="h-3 w-3" />
+                            <span>{resPicUrl ? 'Photo Selected' : 'Choose Proof'}</span>
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => setResPicUrl(reader.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
                           <Button 
                             size="sm" 
                             className="h-8"
+                            disabled={!resPicUrl}
                             onClick={() => {
-                              if(!resPicUrl) return alert("Please provide a photo URL to resolve.");
                               resolveComplaint(c.id, resPicUrl);
                               setResPicUrl('');
                             }}
                           >
-                            <Upload className="h-3 w-3 mr-1" /> Resolve
+                            Submit Resolution
                           </Button>
                         </div>
                       ) : (
@@ -409,6 +511,7 @@ export default function Secretary() {
                 >
                   <option value="GUARD">Security Guard</option>
                   <option value="HOUSEKEEPING">Housekeeping</option>
+                  <option value="SECRETARY">Assistant Admin (Sub-Admin)</option>
                 </select>
               </div>
               <Button onClick={handleAddStaff} className="w-full">Create Account</Button>

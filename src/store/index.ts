@@ -165,6 +165,28 @@ export interface Notice {
   author: string;
 }
 
+export interface ClubhouseBooking {
+  id: string;
+  societyId: string;
+  flatNo: string;
+  facilityName: string;
+  date: string;
+  timeSlot: string;
+  status: 'PENDING' | 'APPROVED' | 'DECLINED';
+  requestedBy: string;
+}
+
+export interface EventRequest {
+  id: string;
+  societyId: string;
+  flatNo: string;
+  title: string;
+  description: string;
+  date: string;
+  status: 'PENDING' | 'APPROVED' | 'DECLINED';
+  requestedBy: string;
+}
+
 interface AppState {
   registrationCharge: number;
   setRegistrationCharge: (charge: number) => void;
@@ -205,6 +227,13 @@ interface AppState {
   // Communication
   notices: Notice[];
   addNotice: (n: Notice) => void;
+  // Facilities
+  clubhouseBookings: ClubhouseBooking[];
+  addClubhouseBooking: (b: ClubhouseBooking) => void;
+  updateClubhouseBookingStatus: (id: string, status: 'APPROVED' | 'DECLINED') => void;
+  eventRequests: EventRequest[];
+  addEventRequest: (e: EventRequest) => void;
+  updateEventRequestStatus: (id: string, status: 'APPROVED' | 'DECLINED') => void;
 
   emailTemplates: EmailTemplate[];
   updateEmailTemplate: (id: string, updates: Partial<EmailTemplate>) => void;
@@ -230,10 +259,10 @@ const MOCK_SOCIETIES: Society[] = [
 
 const MOCK_USERS: User[] = [
   { id: 'u1', loginId: 'YogiSentry', password: '123456', name: 'YogiSentry Admin', role: 'SUPER_ADMIN' },
-  { id: 'u2', loginId: 'sec_sunrise', password: '123', name: 'Sunrise Secretary', role: 'SECRETARY', societyId: 'Sunrise Apartments' },
-  { id: 'u3', loginId: 'guard_main', password: '123', name: 'Main Gate Guard', role: 'GUARD', societyId: 'Sunrise Apartments' },
-  { id: 'u4', loginId: 'hk_staff', password: '123', name: 'Cleaning Staff', role: 'HOUSEKEEPING', societyId: 'Sunrise Apartments' },
-  { id: 'u5', loginId: '101', password: '123', name: 'Resident 101', role: 'RESIDENT', societyId: 'Sunrise Apartments', flatNo: '101' },
+  { id: 'u2', loginId: 'sec_sunrise', password: '123', name: 'Sunrise Secretary', role: 'SECRETARY', societyId: 'soc_1' },
+  { id: 'u3', loginId: 'guard_main', password: '123', name: 'Main Gate Guard', role: 'GUARD', societyId: 'soc_1' },
+  { id: 'u4', loginId: 'hk_staff', password: '123', name: 'Cleaning Staff', role: 'HOUSEKEEPING', societyId: 'soc_1' },
+  { id: 'u5', loginId: '101', password: '123', name: 'Resident 101', role: 'RESIDENT', societyId: 'soc_1', flatNo: '101' },
 ];
 
 export const useStore = create<AppState>((set) => ({
@@ -298,6 +327,17 @@ export const useStore = create<AppState>((set) => ({
 
   notices: [],
   addNotice: (n) => set((state) => ({ notices: [n, ...state.notices] })),
+  
+  clubhouseBookings: [],
+  addClubhouseBooking: (b) => set((state) => ({ clubhouseBookings: [b, ...state.clubhouseBookings] })),
+  updateClubhouseBookingStatus: (id, status) => set((state) => ({
+    clubhouseBookings: state.clubhouseBookings.map(b => b.id === id ? { ...b, status } : b)
+  })),
+  eventRequests: [],
+  addEventRequest: (e) => set((state) => ({ eventRequests: [e, ...state.eventRequests] })),
+  updateEventRequestStatus: (id, status) => set((state) => ({
+    eventRequests: state.eventRequests.map(e => e.id === id ? { ...e, status } : e)
+  })),
 
   emailTemplates: [
     { id: 't1', type: 'Welcome Email', subject: 'Welcome to YogiSentry!', body: 'Hello {name},\n\nYour account has been created successfully.\nLogin ID: {loginId}\nPassword: {password}\n\nRegards,\nYogiSentry Team' },
@@ -343,7 +383,7 @@ onSnapshot(STATE_DOC_REF, (docSnap) => {
     useStore.setState({
       ...data,
       currentUser: useStore.getState().currentUser 
-    } as Partial<AppStore>);
+    } as Partial<AppState>);
   }
   isHydrating = false;
 });

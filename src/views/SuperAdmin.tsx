@@ -45,6 +45,19 @@ export default function SuperAdmin() {
   
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState('');
+  
+  // Subscription Tab States
+  const [planName, setPlanName] = useState('');
+  const [planPrice, setPlanPrice] = useState('');
+  
+  // Payroll Tab States - reuse tempPassword or define new? 
+  // Let's define specific ones if needed, but the original used tempPassword.
+  
+  // Super Admin Tab States
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPhone, setNewAdminPhone] = useState('');
+  const [newAdminGender, setNewAdminGender] = useState('');
 
   const generateRandomPassword = () => {
     return Math.random().toString(36).slice(-6).toUpperCase();
@@ -151,11 +164,6 @@ export default function SuperAdmin() {
     alert(`Credentials sent via email to: ${email}\n(Simulated functionality for ${userId})`);
   };
 
-  const [newAdminName, setNewAdminName] = useState('');
-  const [newAdminEmail, setNewAdminEmail] = useState('');
-  const [newAdminPhone, setNewAdminPhone] = useState('');
-  const [newAdminGender, setNewAdminGender] = useState('');
-
   const handleAddSuperAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAdminName || !newAdminEmail) return alert("Name and Email required");
@@ -174,8 +182,10 @@ export default function SuperAdmin() {
     alert(`Super Admin Added!\nEmployee ID: ${eId}`);
   };
 
+  const superAdmins = users.filter(u => u.role === 'SUPER_ADMIN');
+  const staff = users.filter(u => u.role === 'SECRETARY' || u.role === 'GUARD' || u.role === 'HOUSEKEEPING');
+
   if (currentTab === 'admins') {
-    const superAdmins = users.filter(u => u.role === 'SUPER_ADMIN');
     return (
       <div className="space-y-6 fade-in">
         <h2 className="text-xl font-bold text-slate-800">Manage Super Admins</h2>
@@ -410,8 +420,6 @@ export default function SuperAdmin() {
   }
 
   if (currentTab === 'subscriptions') {
-    const [planName, setPlanName] = useState('');
-    const [planPrice, setPlanPrice] = useState('');
 
     const handleAddPlan = (e: React.FormEvent) => {
       e.preventDefault();
@@ -538,7 +546,6 @@ export default function SuperAdmin() {
   }
 
   if (currentTab === 'payroll') {
-    const staff = users.filter(u => u.role === 'SECRETARY' || u.role === 'GUARD' || u.role === 'HOUSEKEEPING');
     return (
        <div className="space-y-6 fade-in">
         <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-border shadow-sm">

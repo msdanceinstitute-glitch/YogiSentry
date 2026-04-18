@@ -8,12 +8,36 @@ import { format } from 'date-fns';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Resident() {
-  const { currentUser, maintenanceDues, markMaintenancePaid, vehicles, visitorRequests, parcels, updateVisitorStatus, addVehicle, notices, addNotice } = useStore();
+  const { 
+    currentUser, 
+    maintenanceDues, 
+    markMaintenancePaid, 
+    vehicles, 
+    visitorRequests, 
+    parcels, 
+    updateVisitorStatus, 
+    addVehicle, 
+    notices, 
+    addNotice,
+    clubhouseBookings,
+    addClubhouseBooking,
+    eventRequests,
+    addEventRequest
+  } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
   const currentTab = location.pathname.split('/').pop() || 'resident';
   
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+
+  // Facility Form State
+  const [facilityName, setFacilityName] = useState('Gym');
+  const [bookingDate, setBookingDate] = useState('');
+  const [bookingTime, setBookingTime] = useState('');
+  
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDesc, setEventDesc] = useState('');
+  const [eventDate, setEventDate] = useState('');
 
   // Vehicle form
   const [showAddVehicle, setShowAddVehicle] = useState(false);
@@ -29,6 +53,8 @@ export default function Resident() {
 
   const myVisitors = visitorRequests.filter(v => v.flatNo === currentUser?.flatNo);
   const myParcels = parcels.filter(p => p.flatNo === currentUser?.flatNo);
+  const myBookings = clubhouseBookings.filter(b => b.flatNo === currentUser?.flatNo);
+  const myEvents = eventRequests.filter(e => e.flatNo === currentUser?.flatNo);
 
   const handleUpdateStatus = (requestId: string, newStatus: 'APPROVED' | 'DECLINED') => {
     updateVisitorStatus(requestId, newStatus);
@@ -37,8 +63,46 @@ export default function Resident() {
   const handleFileCapture = (e: React.ChangeEvent<HTMLInputElement>, setPhotoUrl: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      setPhotoUrl(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const handleBookingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if(!bookingDate || !bookingTime) return alert("Please select date and time.");
+    addClubhouseBooking({
+      id: `bk_${Date.now()}`,
+      societyId: currentUser?.societyId || '',
+      flatNo: currentUser?.flatNo || '',
+      facilityName,
+      date: bookingDate,
+      timeSlot: bookingTime,
+      status: 'PENDING',
+      requestedBy: currentUser?.name || ''
+    });
+    setBookingDate(''); setBookingTime('');
+    alert("Booking request sent to secretary!");
+  };
+
+  const handleEventSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if(!eventTitle || !eventDate) return alert("Title and Date required.");
+    addEventRequest({
+      id: `ev_${Date.now()}`,
+      societyId: currentUser?.societyId || '',
+      flatNo: currentUser?.flatNo || '',
+      title: eventTitle,
+      description: eventDesc,
+      date: eventDate,
+      status: 'PENDING',
+      requestedBy: currentUser?.name || ''
+    });
+    setEventTitle(''); setEventDesc(''); setEventDate('');
+    alert("Event request submitted for approval!");
   };
 
   const handleRegisterVehicle = (e: React.FormEvent) => {
@@ -216,6 +280,84 @@ export default function Resident() {
                   {paidDues.length === 0 && <p className="text-[13px] text-text-muted py-[8px]">No payment history recorded.</p>}
                 </div>
               </CardContent>
+            </Card>
+          </div>
+        ) : currentTab === 'facilities' ? (
+          <div className="space-y-6 fade-in max-w-4xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="border-border shadow-none">
+                <CardHeader><CardTitle>Book Clubhouse Facility</CardTitle></CardHeader>
+                <CardContent>
+                  <form onSubmit={handleBookingSubmit} className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Facility</label>
+                      <select className="w-full h-10 border rounded-md px-3 text-sm" value={facilityName} onChange={e=>setFacilityName(e.target.value)}>
+                        <option value="Gym">Gymnasium</option>
+                        <option value="Pool">Swimming Pool</option>
+                        <option value="Hall">Community Hall</option>
+                        <option value="Court">Badminton Court</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Date</label>
+                      <Input type="date" value={bookingDate} onChange={e=>setBookingDate(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Time Slot</label>
+                      <Input placeholder="e.g. 6:00 PM - 7:00 PM" value={bookingTime} onChange={e=>setBookingTime(e.target.value)} required />
+                    </div>
+                    <Button type="submit" className="w-full">Request Booking</Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-none">
+                <CardHeader><CardTitle>Request Private Event</CardTitle></CardHeader>
+                <CardContent>
+                  <form onSubmit={handleEventSubmit} className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Event Title</label>
+                      <Input placeholder="e.g. Birthday Party" value={eventTitle} onChange={e=>setEventTitle(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Date</label>
+                      <Input type="date" value={eventDate} onChange={e=>setEventDate(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Description</label>
+                      <textarea className="w-full border rounded-md p-2 text-sm h-16" value={eventDesc} onChange={e=>setEventDesc(e.target.value)} placeholder="Short details..."/>
+                    </div>
+                    <Button type="submit" variant="outline" className="w-full">Submit Request</Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-border shadow-none">
+               <CardHeader><CardTitle>My Request Status</CardTitle></CardHeader>
+               <CardContent className="p-0">
+                 <div className="divide-y">
+                   {myBookings.map(b => (
+                     <div key={b.id} className="p-4 flex justify-between items-center text-sm">
+                       <div>
+                         <span className="font-bold">{b.facilityName}</span>
+                         <p className="text-xs text-slate-500">{b.date} at {b.timeSlot}</p>
+                       </div>
+                       <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : b.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{b.status}</span>
+                     </div>
+                   ))}
+                   {myEvents.map(e => (
+                     <div key={e.id} className="p-4 flex justify-between items-center text-sm">
+                       <div>
+                         <span className="font-bold italic">{e.title}</span>
+                         <p className="text-xs text-slate-500">Event on {e.date}</p>
+                       </div>
+                       <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${e.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : e.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{e.status}</span>
+                     </div>
+                   ))}
+                   {myBookings.length === 0 && myEvents.length === 0 && <p className="p-8 text-center text-slate-500">No facilities requests yet.</p>}
+                 </div>
+               </CardContent>
             </Card>
           </div>
         ) : currentTab === 'communication' ? (
