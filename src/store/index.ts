@@ -308,7 +308,7 @@ export const useStore = create<AppState>((set) => ({
   })),
   addUser: (user) => set((state) => ({ users: [...state.users, user] })),
 
-  currentUser: null,
+  currentUser: MOCK_USERS[0],
   setCurrentUser: (user) => set({ currentUser: user }),
 
   societies: MOCK_SOCIETIES,
