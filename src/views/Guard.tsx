@@ -153,13 +153,13 @@ export default function Guard() {
                       className="aspect-video bg-gray-100 rounded-[8px] flex flex-col items-center justify-center text-text-muted relative overflow-hidden cursor-pointer hover:bg-gray-200 transition-colors"
                       onClick={() => parcelPhotoRef.current?.click()}
                     >
-                      <input type="file" accept="image/*" capture="environment" className="hidden" ref={parcelPhotoRef} onChange={(e) => handleFileCapture(e, setParcelPhoto)} />
+                      <input type="file" accept="image/*" className="hidden" ref={parcelPhotoRef} onChange={(e) => handleFileCapture(e, setParcelPhoto)} />
                       {parcelPhoto ? (
                         <img src={parcelPhoto} className="absolute inset-0 w-full h-full object-cover" alt="Parcel" />
                       ) : (
                         <>
                           <Camera className="h-[24px] w-[24px] mb-[8px] opacity-70" />
-                          <span className="text-[12px] font-[600]">Click to Capture Parcel</span>
+                          <span className="text-[12px] font-[600]">Click to Upload/Capture Parcel</span>
                         </>
                       )}
                     </div>
@@ -313,13 +313,13 @@ export default function Guard() {
                       className="aspect-video bg-gray-100 rounded-[8px] flex flex-col items-center justify-center text-text-muted relative overflow-hidden cursor-pointer hover:bg-gray-200 transition-colors"
                       onClick={() => visitorPhotoRef.current?.click()}
                     >
-                      <input type="file" accept="image/*" capture="environment" className="hidden" ref={visitorPhotoRef} onChange={(e) => handleFileCapture(e, setVisitorPhoto)} />
+                      <input type="file" accept="image/*" className="hidden" ref={visitorPhotoRef} onChange={(e) => handleFileCapture(e, setVisitorPhoto)} />
                       {visitorPhoto ? (
                         <img src={visitorPhoto} className="absolute inset-0 w-full h-full object-cover" alt="Visitor" />
                       ) : (
                         <>
                           <Camera className="h-[24px] w-[24px] mb-[8px] opacity-70" />
-                          <span className="text-[12px] font-[600] text-center">Click to Capture<br/>Visitor Photo</span>
+                          <span className="text-[12px] font-[600] text-center">Click to Upload/Capture<br/>Visitor Photo</span>
                         </>
                       )}
                     </div>
@@ -329,7 +329,7 @@ export default function Guard() {
                         className="aspect-square bg-gray-100 rounded-[8px] flex flex-col items-center justify-center text-text-muted relative overflow-hidden cursor-pointer hover:bg-gray-200 transition-colors"
                         onClick={handleCaptureVehicle}
                       >
-                        <input type="file" accept="image/*" capture="environment" className="hidden" ref={vehiclePhotoRef} onChange={(e) => handleFileCapture(e, setVehiclePhoto)} />
+                        <input type="file" accept="image/*" className="hidden" ref={vehiclePhotoRef} onChange={(e) => handleFileCapture(e, setVehiclePhoto)} />
                         {vehiclePhoto ? (
                           <img src={vehiclePhoto} className="absolute inset-0 w-full h-full object-cover" alt="Vehicle" />
                         ) : (
@@ -339,7 +339,7 @@ export default function Guard() {
                             ) : (
                               <Car className="h-[20px] w-[20px] mb-[4px] opacity-70" />
                             )}
-                            <span className="text-[10px] font-[600] text-center px-2">Capture Vehicle <span className="opacity-60">(Opt)</span></span>
+                            <span className="text-[10px] font-[600] text-center px-2">Upload/Capture Vehicle <span className="opacity-60">(Opt)</span></span>
                           </>
                         )}
                       </div>

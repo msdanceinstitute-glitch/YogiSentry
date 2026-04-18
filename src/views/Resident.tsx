@@ -174,22 +174,22 @@ export default function Resident() {
                         className="aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center text-text-muted relative overflow-hidden cursor-pointer hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300"
                         onClick={() => frontPhotoRef.current?.click()}
                       >
-                       <input type="file" accept="image/*" capture="environment" className="hidden" ref={frontPhotoRef} onChange={(e) => handleFileCapture(e, setFrontPhotoUrl)} />
+                       <input type="file" accept="image/*" className="hidden" ref={frontPhotoRef} onChange={(e) => handleFileCapture(e, setFrontPhotoUrl)} />
                        {frontPhotoUrl ? (
                          <img src={frontPhotoUrl} className="absolute inset-0 w-full h-full object-cover" alt="Front" />
                        ) : (
-                         <span className="text-xs font-semibold">Front Photo</span>
+                         <span className="text-xs font-semibold text-center p-2">Front Photo<br/>(Gallery/Camera)</span>
                        )}
                       </div>
                       <div 
                         className="aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center text-text-muted relative overflow-hidden cursor-pointer hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300"
                         onClick={() => backPhotoRef.current?.click()}
                       >
-                       <input type="file" accept="image/*" capture="environment" className="hidden" ref={backPhotoRef} onChange={(e) => handleFileCapture(e, setBackPhotoUrl)} />
+                       <input type="file" accept="image/*" className="hidden" ref={backPhotoRef} onChange={(e) => handleFileCapture(e, setBackPhotoUrl)} />
                        {backPhotoUrl ? (
                          <img src={backPhotoUrl} className="absolute inset-0 w-full h-full object-cover" alt="Back" />
                        ) : (
-                         <span className="text-xs font-semibold">Back Photo</span>
+                         <span className="text-xs font-semibold text-center p-2">Back Photo<br/>(Gallery/Camera)</span>
                        )}
                       </div>
                     </div>

@@ -71,7 +71,7 @@ export default function Housekeeping() {
               ) : (
                 <>
                   <Camera className="h-[32px] w-[32px] mb-[8px] opacity-50" />
-                  <span className="font-[600] text-[13px]">Tap to capture photo</span>
+                  <span className="font-[600] text-[13px]">Tap to Upload/Capture Photo</span>
                 </>
               )}
             </div>

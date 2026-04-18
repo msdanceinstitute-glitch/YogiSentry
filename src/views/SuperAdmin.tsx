@@ -49,7 +49,16 @@ export default function SuperAdmin() {
   // Subscription Tab States
   const [planName, setPlanName] = useState('');
   const [planPrice, setPlanPrice] = useState('');
-  
+  const [planDuration, setPlanDuration] = useState('1');
+  const [planCities, setPlanCities] = useState('');
+  const [planFeatures, setPlanFeatures] = useState('');
+
+  // PO States
+  const [selectedSocId, setSelectedSocId] = useState('');
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [poAmount, setPoAmount] = useState('');
+  const [poPeriod, setPoPeriod] = useState('12'); // Months
+
   // Payroll Tab States - reuse tempPassword or define new? 
   // Let's define specific ones if needed, but the original used tempPassword.
   
@@ -420,6 +429,7 @@ export default function SuperAdmin() {
   }
 
   if (currentTab === 'subscriptions') {
+    const { purchaseOrders, addPurchaseOrder } = useStore();
 
     const handleAddPlan = (e: React.FormEvent) => {
       e.preventDefault();
@@ -427,64 +437,152 @@ export default function SuperAdmin() {
         id: `sub_${Date.now()}`,
         name: planName,
         price: Number(planPrice),
-        features: ['Standard Support']
+        durationMonths: Number(planDuration),
+        cities: planCities.split(',').map(c => c.trim()),
+        features: planFeatures.split(',').map(f => f.trim())
       });
-      setPlanName(''); setPlanPrice('');
+      setPlanName(''); setPlanPrice(''); setPlanCities(''); setPlanFeatures('');
+    };
+
+    const handleCreatePO = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedSocId || !selectedPlanId || !poAmount) return alert("Select all fields");
+      
+      const expiry = new Date();
+      expiry.setMonth(expiry.getMonth() + Number(poPeriod));
+
+      const newPo = {
+        id: `po_${Date.now()}`,
+        societyId: selectedSocId,
+        planId: selectedPlanId,
+        amount: Number(poAmount),
+        date: new Date().toISOString(),
+        validityMonths: Number(poPeriod),
+        expiryDate: expiry.toISOString(),
+        status: 'COMPLETED' as const
+      };
+
+      addPurchaseOrder(newPo);
+      
+      // Update society status
+      updateSociety(selectedSocId, {
+        subscriptionActive: true,
+        subscriptionPlanId: selectedPlanId,
+        subscriptionExpiry: expiry.toISOString()
+      });
+
+      alert("Purchase Order processed! Society activated until " + expiry.toLocaleDateString());
     };
 
     return (
-      <div className="space-y-6 fade-in">
-        <h2 className="text-xl font-bold text-slate-800">Subscription Plans & Billing</h2>
+      <div className="space-y-6 fade-in pb-20">
+        <h2 className="text-xl font-bold text-slate-800">Subscription Plans & PO Billing</h2>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-           <Card className="border-border shadow-sm lg:col-span-1">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           <Card className="border-border shadow-sm">
              <CardHeader className="bg-slate-50 border-b"><CardTitle>Create New Plan</CardTitle></CardHeader>
              <CardContent className="pt-4">
                <form onSubmit={handleAddPlan} className="space-y-4">
-                 <div>
-                   <label className="block text-xs font-semibold text-slate-700 mb-1">Plan Name</label>
-                   <Input required value={planName} onChange={e=>setPlanName(e.target.value)} placeholder="e.g. Enterprise Tier" />
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Plan Name</label>
+                      <Input required value={planName} onChange={e=>setPlanName(e.target.value)} placeholder="e.g. Enterprise Tier" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Standard Duration (Months)</label>
+                      <Input required type="number" value={planDuration} onChange={e=>setPlanDuration(e.target.value)} />
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Base Price (₹)</label>
+                      <Input required type="number" value={planPrice} onChange={e=>setPlanPrice(e.target.value)} placeholder="e.g. 5000" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Available Cities (Comma separated)</label>
+                      <Input required value={planCities} onChange={e=>setPlanCities(e.target.value)} placeholder="Mumbai, Pune" />
+                    </div>
                  </div>
                  <div>
-                   <label className="block text-xs font-semibold text-slate-700 mb-1">Monthly Price (₹)</label>
-                   <Input required type="number" value={planPrice} onChange={e=>setPlanPrice(e.target.value)} placeholder="e.g. 5000" />
+                   <label className="block text-xs font-semibold text-slate-700 mb-1">Accessible Features (Comma separated)</label>
+                   <Input required value={planFeatures} onChange={e=>setPlanFeatures(e.target.value)} placeholder="Visitor, Financial, Payroll" />
                  </div>
-                 <Button type="submit" className="w-full">Create Plan</Button>
+                 <Button type="submit" className="w-full">Create Master Plan</Button>
                </form>
              </CardContent>
            </Card>
 
-           <Card className="border-border shadow-sm lg:col-span-2">
-            <CardHeader className="bg-slate-50 border-b"><CardTitle>Available Plans</CardTitle></CardHeader>
+           <Card className="border-border shadow-sm">
+             <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
+                <CardTitle>Purchase Order (Society Activation)</CardTitle>
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+             </CardHeader>
+             <CardContent className="pt-4">
+               <form onSubmit={handleCreatePO} className="space-y-4">
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Select Society</label>
+                      <select value={selectedSocId} onChange={e=>setSelectedSocId(e.target.value)} className="w-full h-10 border rounded-md px-3 text-sm bg-white">
+                        <option value="">Choose Society</option>
+                        {societies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Select Plan</label>
+                      <select value={selectedPlanId} onChange={e=>setSelectedPlanId(e.target.value)} className="w-full h-10 border rounded-md px-3 text-sm bg-white">
+                        <option value="">Choose Plan</option>
+                        {subscriptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Final Amount (₹)</label>
+                      <Input required type="number" value={poAmount} onChange={e=>setPoAmount(e.target.value)} placeholder="Negotiated price" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Validity (Months)</label>
+                      <Input required type="number" value={poPeriod} onChange={e=>setPoPeriod(e.target.value)} />
+                    </div>
+                 </div>
+                 <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">Create PO & Activate Logins</Button>
+                 <p className="text-[10px] text-center text-slate-500 italic">Creating a PO automatically extends the society's platform access validity.</p>
+               </form>
+             </CardContent>
+           </Card>
+        </div>
+
+        <Card className="border-border shadow-sm mt-6">
+            <CardHeader className="bg-slate-50 border-b"><CardTitle>Available Master Plans</CardTitle></CardHeader>
             <CardContent className="p-0">
                <table className="w-full text-left text-sm">
                  <thead className="bg-[#f8fafc] border-b text-slate-500 uppercase text-[11px] font-bold tracking-wider">
-                   <tr><th className="p-4">Plan Name</th><th className="p-4">Price</th><th className="p-4">Features</th></tr>
+                   <tr><th className="p-4">Plan Name</th><th className="p-4">Price</th><th className="p-4">Coverage</th><th className="p-4">Features</th></tr>
                  </thead>
                  <tbody className="divide-y text-[13px]">
                    {subscriptions.map(plan => (
                      <tr key={plan.id}>
                        <td className="p-4 font-semibold text-slate-800">{plan.name}</td>
-                       <td className="p-4 font-mono font-bold text-emerald-600">₹{plan.price}</td>
-                       <td className="p-4 text-slate-500">{plan.features.join(', ')}</td>
+                       <td className="p-4 font-mono font-bold text-emerald-600">₹{plan.price} / {plan.durationMonths}m</td>
+                       <td className="p-4 text-slate-500">{plan.cities?.join(', ') || 'Global'}</td>
+                       <td className="p-4 text-slate-500 italic">{plan.features.join(', ')}</td>
                      </tr>
                    ))}
                  </tbody>
                </table>
             </CardContent>
-           </Card>
-        </div>
+        </Card>
 
-        <Card className="border-border shadow-none">
-          <CardHeader className="border-b">
-            <CardTitle>Society Subscriptions Status</CardTitle>
+        <Card className="border-border shadow-none mt-6">
+          <CardHeader className="border-b bg-slate-50">
+            <CardTitle>Society Platform Status & Validity</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
              <table className="w-full text-left">
               <thead className="text-[11px] text-text-muted uppercase bg-sidebar border-b border-border">
                 <tr>
                   <th className="px-[20px] py-[12px] font-[600]">Society</th>
-                  <th className="px-[20px] py-[12px] font-[600]">Billing Cycle</th>
+                  <th className="px-[20px] py-[12px] font-[600]">Expiry Date</th>
                   <th className="px-[20px] py-[12px] font-[600]">Status</th>
                   <th className="px-[20px] py-[12px] font-[600] text-right">Action</th>
                 </tr>
@@ -492,25 +590,28 @@ export default function SuperAdmin() {
               <tbody className="divide-y divide-border">
                 {societies.map((soc) => (
                   <tr key={soc.id} className="hover:bg-gray-50 text-[13px]">
-                    <td className="px-[20px] py-[16px] font-[600]">{soc.name}</td>
-                    <td className="px-[20px] py-[16px] text-slate-500">Monthly Billing</td>
                     <td className="px-[20px] py-[16px]">
-                      {soc.subscriptionActive ? (
-                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-bold">Active</span>
+                      <div className="font-[600]">{soc.name}</div>
+                      <div className="text-[10px] text-slate-500">{soc.city || 'TBD'}</div>
+                    </td>
+                    <td className="px-[20px] py-[16px]">
+                       <span className={`font-mono ${soc.subscriptionExpiry && new Date(soc.subscriptionExpiry) < new Date() ? 'text-red-600 font-bold' : 'text-slate-600'}`}>
+                         {soc.subscriptionExpiry ? new Date(soc.subscriptionExpiry).toLocaleDateString() : 'No PO Recorded'}
+                       </span>
+                    </td>
+                    <td className="px-[20px] py-[16px]">
+                      {soc.subscriptionActive && (!soc.subscriptionExpiry || new Date(soc.subscriptionExpiry) > new Date()) ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-bold">ACTIVE</span>
                       ) : (
-                        <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-bold">Inactive</span>
+                        <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-bold">FREEZED</span>
                       )}
                     </td>
                     <td className="px-[20px] py-[16px] text-right">
-                      <Button size="sm" variant={soc.subscriptionActive ? "outline" : "default"} onClick={() => {
-                        const newActiveState = !soc.subscriptionActive;
-                        const message = newActiveState ? "Activating billing for society..." : "Canceling subscription...";
-                        alert(message);
-                        updateSociety(soc.id, { 
-                          subscriptionActive: newActiveState, 
-                        });
+                      <Button size="sm" variant="outline" onClick={() => {
+                         setSelectedSocId(soc.id);
+                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}>
-                        {soc.subscriptionActive ? "Cancel Plan" : "Activate"}
+                        Update PO
                       </Button>
                     </td>
                   </tr>
@@ -519,6 +620,36 @@ export default function SuperAdmin() {
              </table>
           </CardContent>
         </Card>
+
+        {purchaseOrders && purchaseOrders.length > 0 && (
+           <Card className="border-border shadow-none mt-6">
+           <CardHeader className="border-b bg-slate-50">
+             <CardTitle>PO History / Audit Log</CardTitle>
+           </CardHeader>
+           <CardContent className="p-0">
+              <table className="w-full text-left">
+               <thead className="text-[11px] text-text-muted uppercase bg-sidebar border-b border-border">
+                 <tr>
+                   <th className="px-[20px] py-[12px] font-[600]">PO ID</th>
+                   <th className="px-[20px] py-[12px] font-[600]">Society</th>
+                   <th className="px-[20px] py-[12px] font-[600]">Amount</th>
+                   <th className="px-[20px] py-[12px] font-[600]">Expiry</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-border">
+                 {purchaseOrders.map(po => (
+                   <tr key={po.id} className="text-[13px]">
+                     <td className="px-[20px] py-[16px] font-mono text-[11px]">{po.id}</td>
+                     <td className="px-[20px] py-[16px]">{societies.find(s=>s.id === po.societyId)?.name || po.societyId}</td>
+                     <td className="px-[20px] py-[16px] font-bold text-emerald-700">₹{po.amount}</td>
+                     <td className="px-[20px] py-[16px] font-mono">{new Date(po.expiryDate).toLocaleDateString()}</td>
+                   </tr>
+                 ))}
+               </tbody>
+              </table>
+           </CardContent>
+         </Card>
+        )}
       </div>
     );
   }

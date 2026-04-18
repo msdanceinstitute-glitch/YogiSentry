@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export default function Login() {
-  const { users, setCurrentUser } = useStore();
+  const { users, societies, setCurrentUser } = useStore();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +16,21 @@ export default function Login() {
   const [password, setPassword] = useState('');
 
   const handleLoginSuccess = (user: User) => {
+    // Check for Frozen account due to subscription
+    if (user.role !== 'SUPER_ADMIN' && user.societyId) {
+      const society = societies.find(s => s.id === user.societyId);
+      if (society) {
+        const isExpired = society.subscriptionExpiry && new Date(society.subscriptionExpiry) < new Date();
+        const isInactive = !society.subscriptionActive;
+        
+        if (isInactive || isExpired) {
+          setError("Your society's access to YogiSentry has been suspended. Please contact your Secretary for renewal.");
+          setIsLoading(false);
+          return;
+        }
+      }
+    }
+
     setCurrentUser(user);
     setIsLoading(false); // Ensure loading stops on success before navigation
     
@@ -39,17 +54,27 @@ export default function Login() {
     // Simulate network delay
     setTimeout(() => {
       try {
+        console.log("Attempting login for ID:", loginId, "Directory size:", users?.length);
+        
+        if (!Array.isArray(users)) {
+          console.error("Store users is not an array:", users);
+          setError("Connecting to secure server... Please try again in a moment.");
+          setIsLoading(false);
+          return;
+        }
+
         const foundUser = users.find(u => u.loginId === loginId && u.password === password);
         
         if (foundUser) {
+          console.log("User found, proceeding to dashboard...");
           handleLoginSuccess(foundUser);
         } else {
           setError("Invalid Resident ID or Password.");
           setIsLoading(false);
         }
       } catch (err) {
-        console.error("Login crash:", err);
-        setError("An unexpected error occurred during login.");
+        console.error("Login crash detail:", err);
+        setError("An unexpected error occurred during logic processing.");
         setIsLoading(false);
       }
     }, 600);

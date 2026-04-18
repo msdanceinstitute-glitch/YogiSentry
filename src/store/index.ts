@@ -40,6 +40,8 @@ export interface Society {
   totalFlats?: number;
   totalRevenue: number;
   subscriptionActive: boolean;
+  subscriptionPlanId?: string;
+  subscriptionExpiry?: string; // ISO Date
   logoUrl?: string;
   faviconUrl?: string;
 }
@@ -55,7 +57,21 @@ export interface SubscriptionPlan {
   id: string;
   name: string;
   price: number;
+  durationMonths: number;
+  cities: string[]; // Coverage cities
   features: string[];
+  maxUsers?: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  societyId: string;
+  planId: string;
+  amount: number;
+  date: string;
+  validityMonths: number;
+  expiryDate: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
 }
 
 export interface PayrollRecord {
@@ -251,6 +267,9 @@ interface AppState {
   addSubscription: (plan: SubscriptionPlan) => void;
   updateSubscription: (id: string, updates: Partial<SubscriptionPlan>) => void;
 
+  purchaseOrders: PurchaseOrder[];
+  addPurchaseOrder: (po: PurchaseOrder) => void;
+
   payrolls: PayrollRecord[];
   addPayrollRecord: (p: PayrollRecord) => void;
 
@@ -358,13 +377,16 @@ export const useStore = create<AppState>((set) => ({
   })),
 
   subscriptions: [
-    { id: 'sub_1', name: 'Basic Tier', price: 0, features: ['Visitor Tracking', 'Basic Notices'] },
-    { id: 'sub_2', name: 'Premium Tier', price: 5000, features: ['Visitor Tracking', 'Financial Hub', 'Communication', 'Payroll'] }
+    { id: 'sub_1', name: 'Basic Tier', price: 0, durationMonths: 1, cities: ['Global'], features: ['Visitor Tracking', 'Basic Notices'] },
+    { id: 'sub_2', name: 'Premium Tier', price: 5000, durationMonths: 1, cities: ['Global'], features: ['Visitor Tracking', 'Financial Hub', 'Communication', 'Payroll'] }
   ],
   addSubscription: (plan) => set((state) => ({ subscriptions: [...state.subscriptions, plan] })),
   updateSubscription: (id, updates) => set((state) => ({
     subscriptions: state.subscriptions.map(s => s.id === id ? { ...s, ...updates } : s)
   })),
+
+  purchaseOrders: [],
+  addPurchaseOrder: (po) => set((state) => ({ purchaseOrders: [po, ...state.purchaseOrders] })),
 
   payrolls: [],
   addPayrollRecord: (p) => set((state) => ({ payrolls: [p, ...state.payrolls] })),
@@ -386,24 +408,45 @@ const STATE_DOC_REF = doc(db, 'app_state', 'main');
 
 // Load from Firebase
 onSnapshot(STATE_DOC_REF, (docSnap) => {
-  if (docSnap.exists()) {
-    const data = docSnap.data();
-    // Rehydrate everything EXCEPT the current logged in user (so different tabs can have different actors)
-    // Also ensure MOCK_USERS are preserved if the remote users array is empty/missing
-    useStore.setState({
-      ...data,
-      users: (data.users && data.users.length > 0) ? data.users : useStore.getState().users,
-      currentUser: useStore.getState().currentUser 
-    } as Partial<AppState>);
+  try {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      console.log("Syncing from Firestore...", Object.keys(data));
+      
+      // Ensure users is always an array of at least MOCK_USERS to prevent login failure
+      const remoteUsers = Array.isArray(data.users) ? data.users : [];
+      const updatedUsers = remoteUsers.length > 0 ? remoteUsers : useStore.getState().users;
+
+      useStore.setState({
+        ...data,
+        users: updatedUsers,
+        currentUser: useStore.getState().currentUser // Never overwrite local session
+      } as Partial<AppState>);
+    } else {
+      console.log("No remote state found, using local defaults.");
+    }
+  } catch (err) {
+    console.error("Hydration error:", err);
+  } finally {
+    isHydrating = false;
   }
-  isHydrating = false;
+}, (error) => {
+  console.error("Firebase connection error:", error);
+  isHydrating = false; 
 });
 
 // Save to Firebase on every local change
 useStore.subscribe((state) => {
   if (isHydrating) return;
-  const { currentUser, setRegistrationCharge, addSociety, updateSociety, addUser, updateUser, setCurrentUser, addVisitorRequest, updateVisitorStatus, addPermanentPass, addParcel, updateParcelStatus, addCleaningProof, addVehicle, markMaintenancePaid, addMaintenanceDue, addExpense, resolveComplaint, addNotice, updateEmailTemplate, logActivity, addSubscription, updateSubscription, addPayrollRecord, addSupportTicket, ...stateToSave } = state;
   
-  // We only want to save the raw arrays/objects, not the accessor functions
+  // Extract only non-functional state to save
+  const stateToSave: any = {};
+  Object.keys(state).forEach(key => {
+    const value = (state as any)[key];
+    if (typeof value !== 'function' && key !== 'currentUser') {
+      stateToSave[key] = value;
+    }
+  });
+  
   setDoc(STATE_DOC_REF, stateToSave).catch(e => console.error("Error saving to Firebase:", e));
 });
