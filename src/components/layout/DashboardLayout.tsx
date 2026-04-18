@@ -118,7 +118,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ${isSidebarOpen ? 'translate-x-[0]' : 'translate-x-[-100%] md:translate-x-0 md:w-[0] hidden md:flex border-none opacity-0'}
       `}>
         <div className="px-[24px] pt-[24px] pb-[32px] text-[22px] font-[800] tracking-[-0.02em] text-accent flex items-center justify-between">
-          YogiSentry
+          <img src="/logo.png" alt="YogiSentry" className="h-[40px] w-auto" referrerPolicy="no-referrer" />
           <button className="md:hidden text-text-muted cursor-pointer" onClick={() => setIsSidebarOpen(false)}>
             <X className="w-[20px] h-[20px]" />
           </button>

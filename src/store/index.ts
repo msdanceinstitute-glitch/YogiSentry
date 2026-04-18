@@ -294,132 +294,146 @@ const MOCK_USERS: User[] = [
   { id: 'u5', loginId: '101', password: '123', name: 'Resident 101', role: 'RESIDENT', societyId: 'soc_1', flatNo: '101' },
 ];
 
-export const useStore = create<AppState>((set) => ({
-  registrationCharge: 5000, 
-  setRegistrationCharge: (charge) => set({ registrationCharge: charge }),
-  registerSocietyFull: (society: Society, staff: User[], residents: User[]) => set((state) => ({
-    societies: [...state.societies, society],
-    users: [...state.users, ...staff, ...residents]
-  })),
-  users: MOCK_USERS,
-  updateUser: (id, updates) => set((state) => ({
-    users: state.users.map(u => u.id === id ? { ...u, ...updates } : u),
-    currentUser: state.currentUser?.id === id ? { ...state.currentUser, ...updates } : state.currentUser
-  })),
-  addUser: (user) => set((state) => ({ users: [...state.users, user] })),
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
-  currentUser: MOCK_USERS[0],
-  setCurrentUser: (user) => set({ currentUser: user }),
+// ... (Types remain same)
 
-  societies: MOCK_SOCIETIES,
-  addSociety: (s) => set((state) => ({ societies: [...state.societies, s] })),
-  updateSociety: (id, updates) => set((state) => ({ societies: state.societies.map(s => s.id === id ? { ...s, ...updates } : s) })),
-  deleteSociety: (id) => set((state) => ({
-    societies: state.societies.filter(s => s.id !== id),
-    users: state.users.filter(u => u.societyId !== id),
-    visitorRequests: state.visitorRequests.filter(v => v.societyId !== id),
-    permanentPasses: state.permanentPasses.filter(p => p.societyId !== id),
-    parcels: state.parcels.filter(p => p.societyId !== id),
-    cleaningProofs: state.cleaningProofs.filter(c => c.societyId !== id),
-    vehicles: state.vehicles.filter(v => v.societyId !== id),
-    maintenanceDues: state.maintenanceDues.filter(m => m.societyId !== id),
-    expenses: state.expenses.filter(e => e.societyId !== id),
-    complaints: state.complaints.filter(c => c.societyId !== id),
-    notices: state.notices.filter(n => n.societyId !== id),
-    clubhouseBookings: state.clubhouseBookings.filter(b => b.societyId !== id),
-    eventRequests: state.eventRequests.filter(e => e.societyId !== id),
-    activityLogs: state.activityLogs.filter(a => a.societyId !== id),
-    purchaseOrders: state.purchaseOrders.filter(po => po.societyId !== id),
-  })),
-
-  visitorRequests: [],
-  addVisitorRequest: (req) => set((state) => ({ visitorRequests: [req, ...state.visitorRequests] })),
-  updateVisitorStatus: (id, status) => set((state) => ({
-    visitorRequests: state.visitorRequests.map(r => r.id === id ? { ...r, status } : r)
-  })),
-
-  permanentPasses: [],
-  addPermanentPass: (pass) => set((state) => ({ permanentPasses: [pass, ...state.permanentPasses] })),
-
-  parcels: [],
-  addParcel: (p) => set((state) => ({ parcels: [p, ...state.parcels] })),
-  updateParcelStatus: (id, status) => set((state) => ({
-    parcels: state.parcels.map(p => p.id === id ? { ...p, status } : p)
-  })),
-
-  cleaningProofs: [],
-  addCleaningProof: (cp) => set((state) => ({ cleaningProofs: [cp, ...state.cleaningProofs] })),
-
-  vehicles: [{ id: 'v1', flatNo: '101', vehicleId: 'MH01AB1234', frontPhoto: 'https://picsum.photos/seed/car/200/200', backPhoto: 'https://picsum.photos/seed/car_back/200/200', societyId: 'soc_1' }],
-  addVehicle: (v) => set((state) => ({ vehicles: [v, ...state.vehicles] })),
-
-  maintenanceDues: [
-    { id: 'm1', flatNo: '101', amount: 3500, status: 'UNPAID', month: 'April 2026', societyId: 'soc_1' },
-    { id: 'm2', flatNo: '204', amount: 3500, status: 'PAID', month: 'April 2026', societyId: 'soc_1' },
-  ],
-  markMaintenancePaid: (id) => set((state) => ({
-    maintenanceDues: state.maintenanceDues.map(m => m.id === id ? { ...m, status: 'PAID' } : m)
-  })),
-  addMaintenanceDue: (due) => set((state) => ({ maintenanceDues: [due, ...state.maintenanceDues] })),
-
-  expenses: [
-    { id: 'e1', category: 'Electricity', amount: 12000, date: '2026-04-10', description: 'Common area lightning', societyId: 'soc_1' },
-    { id: 'e2', category: 'Repairs', amount: 4500, date: '2026-04-12', description: 'Lift maintenance', societyId: 'soc_1' }
-  ],
-  addExpense: (e) => set((state) => ({ expenses: [e, ...state.expenses] })),
-
-  complaints: [
-    { id: 'c1', flatNo: '101', title: 'Water Leak', description: 'Pipe leaking in kitchen', status: 'OPEN', societyId: 'soc_1' }
-  ],
-  resolveComplaint: (id, picUrl) => set((state) => ({
-    complaints: state.complaints.map(c => c.id === id ? { ...c, status: 'RESOLVED', resolutionPicUrl: picUrl } : c)
-  })),
-
-  notices: [],
-  addNotice: (n) => set((state) => ({ notices: [n, ...state.notices] })),
-  
-  clubhouseBookings: [],
-  addClubhouseBooking: (b) => set((state) => ({ clubhouseBookings: [b, ...state.clubhouseBookings] })),
-  updateClubhouseBookingStatus: (id, status) => set((state) => ({
-    clubhouseBookings: state.clubhouseBookings.map(b => b.id === id ? { ...b, status } : b)
-  })),
-  eventRequests: [],
-  addEventRequest: (e) => set((state) => ({ eventRequests: [e, ...state.eventRequests] })),
-  updateEventRequestStatus: (id, status) => set((state) => ({
-    eventRequests: state.eventRequests.map(e => e.id === id ? { ...e, status } : e)
-  })),
-
-  emailTemplates: [
-    { id: 't1', type: 'Welcome Email', subject: 'Welcome to YogiSentry!', body: 'Hello {name},\n\nYour account has been created successfully.\nLogin ID: {loginId}\nPassword: {password}\n\nRegards,\nYogiSentry Team' },
-    { id: 't2', type: 'Payment Reminder', subject: 'Pending Maintenance Due', body: 'Dear Resident,\n\nThis is a reminder that your maintenance due of {amount} is pending.\n\nPlease pay at the earliest.\n\nThank you.' },
-    { id: 't3', type: 'Password Reset', subject: 'Password Reset Request', body: 'Hello {name},\n\nYour new password is: {password}\n\nPlease change it after logging in.' }
-  ],
-  updateEmailTemplate: (id, updates) => set((state) => ({
-    emailTemplates: state.emailTemplates.map(t => t.id === id ? { ...t, ...updates } : t)
-  })),
-
-  subscriptions: [
-    { id: 'sub_1', name: 'Basic Tier', price: 0, durationMonths: 1, cities: ['Global'], features: ['Visitor Tracking', 'Basic Notices'] },
-    { id: 'sub_2', name: 'Premium Tier', price: 5000, durationMonths: 1, cities: ['Global'], features: ['Visitor Tracking', 'Financial Hub', 'Communication', 'Payroll'] }
-  ],
-  addSubscription: (plan) => set((state) => ({ subscriptions: [...state.subscriptions, plan] })),
-  updateSubscription: (id, updates) => set((state) => ({
-    subscriptions: state.subscriptions.map(s => s.id === id ? { ...s, ...updates } : s)
-  })),
-
-  purchaseOrders: [],
-  addPurchaseOrder: (po) => set((state) => ({ purchaseOrders: [po, ...state.purchaseOrders] })),
-
-  payrolls: [],
-  addPayrollRecord: (p) => set((state) => ({ payrolls: [p, ...state.payrolls] })),
-
-  supportTickets: [],
-  addSupportTicket: (t) => set((state) => ({ supportTickets: [t, ...state.supportTickets] })),
-
-  activityLogs: [
-    { id: 'l1', date: new Date().toISOString(), action: 'System Deployed', user: 'System', societyId: 'GLOBAL' }
-  ],
-  logActivity: (action, user, societyId) => set((state) => ({
-    activityLogs: [{ id: Date.now().toString(), date: new Date().toISOString(), action, user, societyId }, ...state.activityLogs]
-  })),
-}));
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      // ... (Initial state logic remains same as above)
+      registrationCharge: 5000, 
+      setRegistrationCharge: (charge) => set({ registrationCharge: charge }),
+      registerSocietyFull: (society: Society, staff: User[], residents: User[]) => set((state) => ({
+        societies: [...state.societies, society],
+        users: [...state.users, ...staff, ...residents]
+      })),
+      users: MOCK_USERS,
+      updateUser: (id, updates) => set((state) => ({
+        users: state.users.map(u => u.id === id ? { ...u, ...updates } : u),
+        currentUser: state.currentUser?.id === id ? { ...state.currentUser, ...updates } : state.currentUser
+      })),
+      addUser: (user) => set((state) => ({ users: [...state.users, user] })),
+    
+      currentUser: MOCK_USERS[0],
+      setCurrentUser: (user) => set({ currentUser: user }),
+    
+      societies: MOCK_SOCIETIES,
+      addSociety: (s) => set((state) => ({ societies: [...state.societies, s] })),
+      updateSociety: (id, updates) => set((state) => ({ societies: state.societies.map(s => s.id === id ? { ...s, ...updates } : s) })),
+      deleteSociety: (id) => set((state) => ({
+        societies: state.societies.filter(s => s.id !== id),
+        users: state.users.filter(u => u.societyId !== id),
+        visitorRequests: state.visitorRequests.filter(v => v.societyId !== id),
+        permanentPasses: state.permanentPasses.filter(p => p.societyId !== id),
+        parcels: state.parcels.filter(p => p.societyId !== id),
+        cleaningProofs: state.cleaningProofs.filter(c => c.societyId !== id),
+        vehicles: state.vehicles.filter(v => v.societyId !== id),
+        maintenanceDues: state.maintenanceDues.filter(m => m.societyId !== id),
+        expenses: state.expenses.filter(e => e.societyId !== id),
+        complaints: state.complaints.filter(c => c.societyId !== id),
+        notices: state.notices.filter(n => n.societyId !== id),
+        clubhouseBookings: state.clubhouseBookings.filter(b => b.societyId !== id),
+        eventRequests: state.eventRequests.filter(e => e.societyId !== id),
+        activityLogs: state.activityLogs.filter(a => a.societyId !== id),
+        purchaseOrders: state.purchaseOrders.filter(po => po.societyId !== id),
+      })),
+    
+      visitorRequests: [],
+      addVisitorRequest: (req) => set((state) => ({ visitorRequests: [req, ...state.visitorRequests] })),
+      updateVisitorStatus: (id, status) => set((state) => ({
+        visitorRequests: state.visitorRequests.map(r => r.id === id ? { ...r, status } : r)
+      })),
+    
+      permanentPasses: [],
+      addPermanentPass: (pass) => set((state) => ({ permanentPasses: [pass, ...state.permanentPasses] })),
+    
+      parcels: [],
+      addParcel: (p) => set((state) => ({ parcels: [p, ...state.parcels] })),
+      updateParcelStatus: (id, status) => set((state) => ({
+        parcels: state.parcels.map(p => p.id === id ? { ...p, status } : p)
+      })),
+    
+      cleaningProofs: [],
+      addCleaningProof: (cp) => set((state) => ({ cleaningProofs: [cp, ...state.cleaningProofs] })),
+    
+      vehicles: [{ id: 'v1', flatNo: '101', vehicleId: 'MH01AB1234', frontPhoto: 'https://picsum.photos/seed/car/200/200', backPhoto: 'https://picsum.photos/seed/car_back/200/200', societyId: 'soc_1' }],
+      addVehicle: (v) => set((state) => ({ vehicles: [v, ...state.vehicles] })),
+    
+      maintenanceDues: [
+        { id: 'm1', flatNo: '101', amount: 3500, status: 'UNPAID', month: 'April 2026', societyId: 'soc_1' },
+        { id: 'm2', flatNo: '204', amount: 3500, status: 'PAID', month: 'April 2026', societyId: 'soc_1' },
+      ],
+      markMaintenancePaid: (id) => set((state) => ({
+        maintenanceDues: state.maintenanceDues.map(m => m.id === id ? { ...m, status: 'PAID' } : m)
+      })),
+      addMaintenanceDue: (due) => set((state) => ({ maintenanceDues: [due, ...state.maintenanceDues] })),
+    
+      expenses: [
+        { id: 'e1', category: 'Electricity', amount: 12000, date: '2026-04-10', description: 'Common area lightning', societyId: 'soc_1' },
+        { id: 'e2', category: 'Repairs', amount: 4500, date: '2026-04-12', description: 'Lift maintenance', societyId: 'soc_1' }
+      ],
+      addExpense: (e) => set((state) => ({ expenses: [e, ...state.expenses] })),
+    
+      complaints: [
+        { id: 'c1', flatNo: '101', title: 'Water Leak', description: 'Pipe leaking in kitchen', status: 'OPEN', societyId: 'soc_1' }
+      ],
+      resolveComplaint: (id, picUrl) => set((state) => ({
+        complaints: state.complaints.map(c => c.id === id ? { ...c, status: 'RESOLVED', resolutionPicUrl: picUrl } : c)
+      })),
+    
+      notices: [],
+      addNotice: (n) => set((state) => ({ notices: [n, ...state.notices] })),
+      
+      clubhouseBookings: [],
+      addClubhouseBooking: (b) => set((state) => ({ clubhouseBookings: [b, ...state.clubhouseBookings] })),
+      updateClubhouseBookingStatus: (id, status) => set((state) => ({
+        clubhouseBookings: state.clubhouseBookings.map(b => b.id === id ? { ...b, status } : b)
+      })),
+      eventRequests: [],
+      addEventRequest: (e) => set((state) => ({ eventRequests: [e, ...state.eventRequests] })),
+      updateEventRequestStatus: (id, status) => set((state) => ({
+        eventRequests: state.eventRequests.map(e => e.id === id ? { ...e, status } : e)
+      })),
+    
+      emailTemplates: [
+        { id: 't1', type: 'Welcome Email', subject: 'Welcome to YogiSentry!', body: 'Hello {name},\n\nYour account has been created successfully.\nLogin ID: {loginId}\nPassword: {password}\n\nRegards,\nYogiSentry Team' },
+        { id: 't2', type: 'Payment Reminder', subject: 'Pending Maintenance Due', body: 'Dear Resident,\n\nThis is a reminder that your maintenance due of {amount} is pending.\n\nPlease pay at the earliest.\n\nThank you.' },
+        { id: 't3', type: 'Password Reset', subject: 'Password Reset Request', body: 'Hello {name},\n\nYour new password is: {password}\n\nPlease change it after logging in.' }
+      ],
+      updateEmailTemplate: (id, updates) => set((state) => ({
+        emailTemplates: state.emailTemplates.map(t => t.id === id ? { ...t, ...updates } : t)
+      })),
+    
+      subscriptions: [
+        { id: 'sub_1', name: 'Basic Tier', price: 0, durationMonths: 1, cities: ['Global'], features: ['Visitor Tracking', 'Basic Notices'] },
+        { id: 'sub_2', name: 'Premium Tier', price: 5000, durationMonths: 1, cities: ['Global'], features: ['Visitor Tracking', 'Financial Hub', 'Communication', 'Payroll'] }
+      ],
+      addSubscription: (plan) => set((state) => ({ subscriptions: [...state.subscriptions, plan] })),
+      updateSubscription: (id, updates) => set((state) => ({
+        subscriptions: state.subscriptions.map(s => s.id === id ? { ...s, ...updates } : s)
+      })),
+    
+      purchaseOrders: [],
+      addPurchaseOrder: (po) => set((state) => ({ purchaseOrders: [po, ...state.purchaseOrders] })),
+    
+      payrolls: [],
+      addPayrollRecord: (p) => set((state) => ({ payrolls: [p, ...state.payrolls] })),
+    
+      supportTickets: [],
+      addSupportTicket: (t) => set((state) => ({ supportTickets: [t, ...state.supportTickets] })),
+    
+      activityLogs: [
+        { id: 'l1', date: new Date().toISOString(), action: 'System Deployed', user: 'System', societyId: 'GLOBAL' }
+      ],
+      logActivity: (action, user, societyId) => set((state) => ({
+        activityLogs: [{ id: Date.now().toString(), date: new Date().toISOString(), action, user, societyId }, ...state.activityLogs]
+      })),
+    }),
+    {
+      name: 'yogisentry-storage', // unique name
+      storage: createJSONStorage(() => localStorage), // use localStorage
+    }
+  )
+);
