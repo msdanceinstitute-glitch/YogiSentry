@@ -51,10 +51,10 @@ export default function Resident() {
   const [noticeTitle, setNoticeTitle] = useState('');
   const [noticeContent, setNoticeContent] = useState('');
 
-  const myVisitors = visitorRequests.filter(v => v.flatNo === currentUser?.flatNo);
-  const myParcels = parcels.filter(p => p.flatNo === currentUser?.flatNo);
-  const myBookings = clubhouseBookings.filter(b => b.flatNo === currentUser?.flatNo);
-  const myEvents = eventRequests.filter(e => e.flatNo === currentUser?.flatNo);
+  const myVisitors = visitorRequests.filter(v => v.societyId === currentUser?.societyId && v.flatNo === currentUser?.flatNo);
+  const myParcels = parcels.filter(p => p.societyId === currentUser?.societyId && p.flatNo === currentUser?.flatNo);
+  const myBookings = clubhouseBookings.filter(b => b.societyId === currentUser?.societyId && b.flatNo === currentUser?.flatNo);
+  const myEvents = eventRequests.filter(e => e.societyId === currentUser?.societyId && e.flatNo === currentUser?.flatNo);
 
   const handleUpdateStatus = (requestId: string, newStatus: 'APPROVED' | 'DECLINED') => {
     updateVisitorStatus(requestId, newStatus);
@@ -117,7 +117,8 @@ export default function Resident() {
       flatNo: currentUser!.flatNo!,
       vehicleId: newVehicleId,
       frontPhoto: frontPhotoUrl,
-      backPhoto: backPhotoUrl
+      backPhoto: backPhotoUrl,
+      societyId: currentUser?.societyId || ''
     });
     
     setNewVehicleId('');
@@ -134,7 +135,8 @@ export default function Resident() {
       title: noticeTitle,
       content: noticeContent,
       author: currentUser?.name || 'Resident',
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      societyId: currentUser?.societyId || ''
     });
     setNoticeTitle('');
     setNoticeContent('');

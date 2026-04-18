@@ -873,10 +873,22 @@ export default function SuperAdmin() {
                       )}
                     </td>
                     <td className="px-[20px] py-[16px] text-right space-x-2">
-                       <Button variant="outline" size="sm" onClick={() => {
-                         const logo = prompt("Enter Logo Image URL:");
-                         if (logo) updateSociety(soc.id, { logoUrl: logo });
-                       }}>Branding</Button>
+                       <label className="inline-flex items-center px-3 py-1 bg-white border border-border text-xs font-semibold rounded-md shadow-sm hover:bg-gray-50 cursor-pointer transition-colors">
+                         Branding
+                         <input 
+                           type="file" 
+                           accept="image/*" 
+                           className="hidden" 
+                           onChange={(e) => {
+                             const file = e.target.files?.[0];
+                             if (file) {
+                               const reader = new FileReader();
+                               reader.onloadend = () => updateSociety(soc.id, { logoUrl: reader.result as string });
+                               reader.readAsDataURL(file);
+                             }
+                           }}
+                         />
+                       </label>
                       <Button variant="outline" size="sm">Manage</Button>
                     </td>
                   </tr>

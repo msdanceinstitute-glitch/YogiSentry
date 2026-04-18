@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useStore, CleaningProof } from '@/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,19 +13,33 @@ export default function Housekeeping() {
   const location = useLocation();
   const currentTab = location.pathname.split('/').pop() || 'housekeeping';
 
+  const [photo, setPhoto] = useState<string | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  const handleFileCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPhoto(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
-    if(!locationName) return;
+    if(!locationName || !photo || !currentUser?.societyId) return alert("Photo and location required");
 
     const proof: CleaningProof = {
       id: `cp_${Date.now()}`,
       staffName: currentUser?.name || 'Staff',
       location: locationName,
-      photoUrl: `https://picsum.photos/seed/${Date.now()}/400/300`,
-      timestamp: new Date().toISOString()
+      photoUrl: photo,
+      timestamp: new Date().toISOString(),
+      societyId: currentUser.societyId
     };
     addCleaningProof(proof);
     setLocationName('');
+    setPhoto(null);
   };
 
   if (currentTab !== 'housekeeping') {
@@ -47,9 +61,19 @@ export default function Housekeeping() {
         </CardHeader>
         <CardContent className="pt-[16px]">
           <form onSubmit={handleUpload} className="space-y-[16px]">
-            <div className="aspect-[4/3] bg-gray-100 rounded-[8px] flex flex-col items-center justify-center text-text-muted border-2 border-dashed border-border relative overflow-hidden cursor-pointer hover:bg-gray-200 transition-colors">
-              <Camera className="h-[32px] w-[32px] mb-[8px] opacity-50" />
-              <span className="font-[600] text-[13px]">Tap to capture photo</span>
+            <div 
+              className="aspect-[4/3] bg-gray-100 rounded-[8px] flex flex-col items-center justify-center text-text-muted border-2 border-dashed border-border relative overflow-hidden cursor-pointer hover:bg-gray-200 transition-colors"
+              onClick={() => photoRef.current?.click()}
+            >
+              <input type="file" accept="image/*" className="hidden" ref={photoRef} onChange={handleFileCapture} />
+              {photo ? (
+                <img src={photo} className="absolute inset-0 w-full h-full object-cover" alt="Cleaning Proof" />
+              ) : (
+                <>
+                  <Camera className="h-[32px] w-[32px] mb-[8px] opacity-50" />
+                  <span className="font-[600] text-[13px]">Tap to capture photo</span>
+                </>
+              )}
             </div>
 
             <div>
@@ -76,10 +100,10 @@ export default function Housekeeping() {
         </CardHeader>
         <CardContent className="pt-[16px]">
            <div className="space-y-[12px]">
-             {cleaningProofs.filter(p => p.staffName === currentUser?.name).length === 0 ? (
+             {cleaningProofs.filter(p => p.societyId === currentUser?.societyId && p.staffName === currentUser?.name).length === 0 ? (
                <p className="text-text-muted text-[13px] text-center py-[24px]">No submissions today.</p>
              ) : (
-               cleaningProofs.filter(p => p.staffName === currentUser?.name).map(proof => (
+               cleaningProofs.filter(p => p.societyId === currentUser?.societyId && p.staffName === currentUser?.name).map(proof => (
                  <div key={proof.id} className="flex gap-[16px] bg-[#f9fafb] p-[12px] rounded-[8px] border border-border">
                    <img src={proof.photoUrl} alt="proof" className="w-[80px] h-[60px] rounded-[4px] object-cover" />
                    <div className="flex flex-col justify-center">

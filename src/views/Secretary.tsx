@@ -63,21 +63,28 @@ export default function Secretary() {
   const [staffRole, setStaffRole] = useState<'GUARD' | 'HOUSEKEEPING' | 'SECRETARY'>('GUARD');
   const [staffLoginId, setStaffLoginId] = useState('');
 
-  const totalCollected = maintenanceDues.filter(m => m.status === 'PAID').reduce((acc, m) => acc + m.amount, 0);
-  const totalDue = maintenanceDues.filter(m => m.status === 'UNPAID').reduce((acc, m) => acc + m.amount, 0);
-  const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
+  const myDues = maintenanceDues.filter(m => m.societyId === currentUser?.societyId);
+  const totalCollected = myDues.filter(m => m.status === 'PAID').reduce((acc, m) => acc + m.amount, 0);
+  const totalDue = myDues.filter(m => m.status === 'UNPAID').reduce((acc, m) => acc + m.amount, 0);
+  const totalExpenses = expenses.filter(e => e.societyId === currentUser?.societyId).reduce((acc, e) => acc + e.amount, 0);
+
+  const currentNotices = notices.filter(n => n.societyId === currentUser?.societyId);
+  const currentDues = maintenanceDues.filter(d => d.societyId === currentUser?.societyId);
+  const currentExpenses = expenses.filter(e => e.societyId === currentUser?.societyId);
+  const currentComplaints = complaints.filter(c => c.societyId === currentUser?.societyId);
 
   const staffMembers = users.filter(u => u.societyId === currentUser?.societyId && (u.role === 'GUARD' || u.role === 'HOUSEKEEPING' || u.role === 'SECRETARY'));
-  const openComplaints = complaints.filter(c => c.status === 'OPEN').length;
+  const openComplaints = currentComplaints.filter(c => c.status === 'OPEN').length;
 
   const handleAddNotice = () => {
-    if (!noticeTitle || !noticeContent) return alert("Title and Content required!");
+    if (!noticeTitle || !noticeContent || !currentUser?.societyId) return alert("Title, Content and Society context required!");
     addNotice({
       id: `notice_${Date.now()}`,
       title: noticeTitle,
       content: noticeContent,
       author: currentUser?.name || 'Secretary',
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      societyId: currentUser.societyId
     });
     setNoticeTitle('');
     setNoticeContent('');
@@ -126,7 +133,8 @@ export default function Secretary() {
           flatNo: r.flatNo,
           amount: amount,
           status: 'UNPAID',
-          month: maintenanceMonth
+          month: maintenanceMonth,
+          societyId: currentUser.societyId!
         });
         generated++;
       }
@@ -330,7 +338,7 @@ export default function Secretary() {
                     <div className="w-[80px]">Status</div>
                     <div className="w-[80px] text-right">Amount</div>
                   </div>
-                  {maintenanceDues.map(due => (
+                  {currentDues.map(due => (
                     <div key={due.id} className="flex items-center py-[10px] border-t border-[#f3f4f6]">
                       <div className="flex-1 text-[13px]">Flat {due.flatNo}</div>
                       <div className="w-[80px] text-[13px]">
@@ -352,7 +360,7 @@ export default function Secretary() {
               </CardHeader>
               <CardContent className="flex-1 p-[16px] flex flex-col gap-[16px]">
                 <div className="text-[11px] uppercase font-[700] text-text-muted">Recent Expenses</div>
-                {expenses.map(e => (
+                {currentExpenses.map(e => (
                   <div key={e.id} className="flex justify-between items-center bg-white border border-border p-[12px] rounded-[8px]">
                     <div className="flex items-center gap-[12px] flex-1">
                       <div className="hidden sm:flex w-[32px] h-[32px] bg-gray-100 rounded-[6px] items-center justify-center text-[8px] text-gray-400 text-center uppercase font-[600]">
@@ -382,8 +390,8 @@ export default function Secretary() {
             </CardHeader>
             <CardContent className="pt-[16px]">
               <div className="divide-y divide-border">
-                {complaints.length === 0 && <p className="text-text-muted text-sm pb-4">No complaints logged.</p>}
-                {complaints.map(c => (
+                {currentComplaints.length === 0 && <p className="text-text-muted text-sm pb-4">No complaints logged.</p>}
+                {currentComplaints.map(c => (
                   <div key={c.id} className="py-4 first:pt-0 last:pb-0 flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center space-x-2">
@@ -467,8 +475,8 @@ export default function Secretary() {
 
         <h3 className="text-lg font-bold text-text-main">Recent Announcements</h3>
         <div className="space-y-4">
-          {notices.length === 0 && <p className="text-sm text-text-muted">No notices found.</p>}
-          {notices.map(n => (
+          {currentNotices.length === 0 && <p className="text-sm text-text-muted">No notices found.</p>}
+          {currentNotices.map(n => (
             <Card key={n.id} className="shadow-none border-border">
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-2">
@@ -589,7 +597,7 @@ export default function Secretary() {
               <CardTitle>Recent Activity</CardTitle>
            </CardHeader>
            <CardContent className="space-y-4">
-              {complaints.slice(0, 3).map(c => (
+              {currentComplaints.slice(0, 3).map(c => (
                 <div key={c.id} className="flex justify-between items-center text-sm">
                   <div>
                     <span className="font-bold">Flat {c.flatNo}</span> logged a complaint: {c.title}
@@ -597,7 +605,7 @@ export default function Secretary() {
                   <span className={`text-xs px-2 py-1 rounded-full font-bold ${c.status === 'OPEN' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{c.status}</span>
                 </div>
               ))}
-              {expenses.slice(0, 3).map(e => (
+              {currentExpenses.slice(0, 3).map(e => (
                  <div key={e.id} className="flex justify-between items-center text-sm border-t border-border pt-4">
                   <div>
                     Spent on <span className="font-bold">{e.category}</span>

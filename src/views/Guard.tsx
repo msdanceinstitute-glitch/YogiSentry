@@ -40,6 +40,9 @@ export default function Guard() {
   const [parcelPhoto, setParcelPhoto] = useState<string | null>(null);
 
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const myParcels = parcels.filter(p => p.societyId === currentUser?.societyId);
+  const myVisitorRequests = visitorRequests.filter(v => v.societyId === currentUser?.societyId);
+  const myPasses = permanentPasses.filter(p => p.societyId === currentUser?.societyId);
 
   // Hidden file inputs for hardware camera capture
   const visitorPhotoRef = useRef<HTMLInputElement>(null);
@@ -78,6 +81,7 @@ export default function Guard() {
       reason,
       status: 'PENDING',
       timestamp: new Date().toISOString(),
+      societyId: currentUser.societyId,
     });
 
     setName('');
@@ -103,7 +107,8 @@ export default function Guard() {
       role: permPassRole,
       mobileNo: permPassMobile,
       validUntil: validUntil.toISOString(),
-      photoUrl: permPassPhoto || undefined
+      photoUrl: permPassPhoto || undefined,
+      societyId: currentUser.societyId,
     });
 
     setPermPassName('');
@@ -124,6 +129,7 @@ export default function Guard() {
       photoUrl: parcelPhoto,
       timeAdded: new Date().toISOString(),
       status: 'AT_GATE',
+      societyId: currentUser.societyId,
     });
 
     setCarrierName('');
@@ -180,13 +186,13 @@ export default function Guard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-[12px]">
-                    {parcels.length === 0 ? (
+                    {myParcels.length === 0 ? (
                       <div className="text-center py-[40px] text-text-muted">
                         <PackageIcon className="h-[32px] w-[32px] mx-auto mb-[12px] opacity-30" />
                         <p className="text-[14px]">No parcels at gate.</p>
                       </div>
                     ) : (
-                      parcels.map(p => (
+                      myParcels.map(p => (
                         <div key={p.id} className="flex items-center justify-between p-[16px] bg-white border border-border rounded-[8px]">
                           <div className="flex items-center gap-[16px]">
                             <img 
@@ -267,8 +273,8 @@ export default function Guard() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="divide-y divide-border">
-                    {permanentPasses.length === 0 && <p className="p-4 text-sm text-text-muted">No permanent passes issued.</p>}
-                    {permanentPasses.map(p => (
+                    {myPasses.length === 0 && <p className="p-4 text-sm text-text-muted">No permanent passes issued.</p>}
+                    {myPasses.map(p => (
                       <div key={p.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-accent-soft rounded-full flex items-center justify-center text-accent font-bold">
@@ -399,13 +405,13 @@ export default function Guard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-[12px]">
-                    {visitorRequests.length === 0 ? (
+                    {myVisitorRequests.length === 0 ? (
                       <div className="text-center py-[40px] text-text-muted">
                         <Clock className="h-[32px] w-[32px] mx-auto mb-[12px] opacity-30" />
                         <p className="text-[14px]">No recent visitors.</p>
                       </div>
                     ) : (
-                      visitorRequests.map(req => (
+                      myVisitorRequests.map(req => (
                         <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-[16px] bg-white border border-border rounded-[8px] gap-4 transition-all">
                           <div className="flex items-center gap-[16px]">
                             <div className="relative shrink-0">

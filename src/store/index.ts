@@ -96,6 +96,7 @@ export interface VisitorRequest {
   vehicleId?: string;
   status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'EXITED';
   timestamp: string;
+  societyId: string;
 }
 
 export interface PermanentPass {
@@ -105,6 +106,7 @@ export interface PermanentPass {
   mobileNo: string;
   validUntil: string;
   photoUrl?: string;
+  societyId: string;
 }
 
 export interface Parcel {
@@ -114,6 +116,7 @@ export interface Parcel {
   photoUrl: string;
   timeAdded: string;
   status: 'AT_GATE' | 'COLLECTED';
+  societyId: string;
 }
 
 export interface MaintenanceDue {
@@ -122,6 +125,7 @@ export interface MaintenanceDue {
   amount: number;
   status: 'PAID' | 'UNPAID';
   month: string;
+  societyId: string;
 }
 
 export interface Expense {
@@ -130,6 +134,7 @@ export interface Expense {
   amount: number;
   date: string;
   description: string;
+  societyId: string;
 }
 
 export interface Complaint {
@@ -139,6 +144,7 @@ export interface Complaint {
   description: string;
   status: 'OPEN' | 'RESOLVED';
   resolutionPicUrl?: string;
+  societyId: string;
 }
 
 export interface CleaningProof {
@@ -147,6 +153,7 @@ export interface CleaningProof {
   location: string;
   photoUrl: string;
   timestamp: string;
+  societyId: string;
 }
 
 export interface Vehicle {
@@ -155,6 +162,16 @@ export interface Vehicle {
   vehicleId: string;
   frontPhoto: string;
   backPhoto: string;
+  societyId: string;
+}
+
+export interface Vehicle {
+  id: string;
+  flatNo: string;
+  vehicleId: string;
+  frontPhoto: string;
+  backPhoto: string;
+  societyId: string;
 }
 
 export interface Notice {
@@ -163,6 +180,7 @@ export interface Notice {
   content: string;
   date: string;
   author: string;
+  societyId: string;
 }
 
 export interface ClubhouseBooking {
@@ -300,12 +318,12 @@ export const useStore = create<AppState>((set) => ({
   cleaningProofs: [],
   addCleaningProof: (cp) => set((state) => ({ cleaningProofs: [cp, ...state.cleaningProofs] })),
 
-  vehicles: [{ id: 'v1', flatNo: '101', vehicleId: 'MH01AB1234', frontPhoto: 'https://picsum.photos/seed/car/200/200', backPhoto: 'https://picsum.photos/seed/car_back/200/200' }],
+  vehicles: [{ id: 'v1', flatNo: '101', vehicleId: 'MH01AB1234', frontPhoto: 'https://picsum.photos/seed/car/200/200', backPhoto: 'https://picsum.photos/seed/car_back/200/200', societyId: 'soc_1' }],
   addVehicle: (v) => set((state) => ({ vehicles: [v, ...state.vehicles] })),
 
   maintenanceDues: [
-    { id: 'm1', flatNo: '101', amount: 3500, status: 'UNPAID', month: 'April 2026' },
-    { id: 'm2', flatNo: '204', amount: 3500, status: 'PAID', month: 'April 2026' },
+    { id: 'm1', flatNo: '101', amount: 3500, status: 'UNPAID', month: 'April 2026', societyId: 'soc_1' },
+    { id: 'm2', flatNo: '204', amount: 3500, status: 'PAID', month: 'April 2026', societyId: 'soc_1' },
   ],
   markMaintenancePaid: (id) => set((state) => ({
     maintenanceDues: state.maintenanceDues.map(m => m.id === id ? { ...m, status: 'PAID' } : m)
@@ -313,13 +331,13 @@ export const useStore = create<AppState>((set) => ({
   addMaintenanceDue: (due) => set((state) => ({ maintenanceDues: [due, ...state.maintenanceDues] })),
 
   expenses: [
-    { id: 'e1', category: 'Electricity', amount: 12000, date: '2026-04-10', description: 'Common area lightning' },
-    { id: 'e2', category: 'Repairs', amount: 4500, date: '2026-04-12', description: 'Lift maintenance' }
+    { id: 'e1', category: 'Electricity', amount: 12000, date: '2026-04-10', description: 'Common area lightning', societyId: 'soc_1' },
+    { id: 'e2', category: 'Repairs', amount: 4500, date: '2026-04-12', description: 'Lift maintenance', societyId: 'soc_1' }
   ],
   addExpense: (e) => set((state) => ({ expenses: [e, ...state.expenses] })),
 
   complaints: [
-    { id: 'c1', flatNo: '101', title: 'Water Leak', description: 'Pipe leaking in kitchen', status: 'OPEN' }
+    { id: 'c1', flatNo: '101', title: 'Water Leak', description: 'Pipe leaking in kitchen', status: 'OPEN', societyId: 'soc_1' }
   ],
   resolveComplaint: (id, picUrl) => set((state) => ({
     complaints: state.complaints.map(c => c.id === id ? { ...c, status: 'RESOLVED', resolutionPicUrl: picUrl } : c)
