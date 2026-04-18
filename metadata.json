@@ -1,0 +1,8 @@
+{
+  "name": "YogiSentry",
+  "description": "Ultimate multi-tenant Apartment Management SaaS platform.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

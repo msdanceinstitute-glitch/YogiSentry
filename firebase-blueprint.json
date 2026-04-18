@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user in the system (Resident, Guard, Admin, etc.)",
+      "type": "object",
+      "properties": {
+        "loginId": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["SUPER_ADMIN", "SECRETARY", "GUARD", "HOUSEKEEPING", "RESIDENT"] },
+        "societyId": { "type": "string" },
+        "flatNo": { "type": "string" },
+        "avatar": { "type": "string" }
+      },
+      "required": ["loginId", "name", "role"]
+    },
+    "Society": {
+      "title": "Society",
+      "description": "A registered society",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "totalRevenue": { "type": "number" },
+        "subscriptionActive": { "type": "boolean" },
+        "address": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["name", "subscriptionActive", "address"]
+    },
+    "VisitorRequest": {
+      "title": "VisitorRequest",
+      "description": "A request for a visitor to enter the society",
+      "type": "object",
+      "properties": {
+        "visitorName": { "type": "string" },
+        "flatNo": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "vehiclePhotoUrl": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "DECLINED"] },
+        "timestamp": { "type": "string" },
+        "societyId": { "type": "string" }
+      },
+      "required": ["visitorName", "flatNo", "photoUrl", "status", "timestamp", "societyId"]
+    },
+    "Parcel": {
+      "title": "Parcel",
+      "description": "A parcel delivered to the gate",
+      "type": "object",
+      "properties": {
+        "carrierName": { "type": "string" },
+        "flatNo": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "timeAdded": { "type": "string" },
+        "status": { "type": "string", "enum": ["AT_GATE", "COLLECTED"] },
+        "societyId": { "type": "string" }
+      },
+      "required": ["carrierName", "flatNo", "photoUrl", "timeAdded", "status", "societyId"]
+    },
+    "MaintenanceDue": {
+      "title": "MaintenanceDue",
+      "description": "Maintenance bill for a flat",
+      "type": "object",
+      "properties": {
+        "flatNo": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["PAID", "UNPAID"] },
+        "month": { "type": "string" },
+        "societyId": { "type": "string" }
+      },
+      "required": ["flatNo", "amount", "status", "month", "societyId"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Society level expense",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "societyId": { "type": "string" }
+      },
+      "required": ["category", "amount", "date", "description", "societyId"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "A resident complaint",
+      "type": "object",
+      "properties": {
+        "flatNo": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "RESOLVED"] },
+        "resolutionPicUrl": { "type": "string" },
+        "societyId": { "type": "string" }
+      },
+      "required": ["flatNo", "title", "description", "status", "societyId"]
+    },
+    "CleaningProof": {
+      "title": "CleaningProof",
+      "description": "Proof of cleaning by housekeeping",
+      "type": "object",
+      "properties": {
+        "staffName": { "type": "string" },
+        "location": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "societyId": { "type": "string" }
+      },
+      "required": ["staffName", "location", "photoUrl", "timestamp", "societyId"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Resident vehicle",
+      "type": "object",
+      "properties": {
+        "flatNo": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "frontPhoto": { "type": "string" },
+        "backPhoto": { "type": "string" },
+        "societyId": { "type": "string" }
+      },
+      "required": ["flatNo", "vehicleId", "frontPhoto", "backPhoto", "societyId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Global user directory"
+    },
+    "/societies/{societyId}": {
+      "schema": { "$ref": "#/entities/Society" },
+      "description": "List of managing societies"
+    },
+    "/societies/{societyId}/visitorRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/VisitorRequest" },
+      "description": "Visitor requests scoped to a society"
+    },
+    "/societies/{societyId}/parcels/{parcelId}": {
+      "schema": { "$ref": "#/entities/Parcel" },
+      "description": "Parcels scoped to a society"
+    },
+    "/societies/{societyId}/maintenanceDues/{dueId}": {
+      "schema": { "$ref": "#/entities/MaintenanceDue" },
+      "description": "Maintenance checks scoped to a society"
+    },
+    "/societies/{societyId}/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "Expenses scoped to a society"
+    },
+    "/societies/{societyId}/complaints/{complaintId}": {
+      "schema": { "$ref": "#/entities/Complaint" },
+      "description": "Complaints scoped to a society"
+    },
+    "/societies/{societyId}/cleaningProofs/{proofId}": {
+      "schema": { "$ref": "#/entities/CleaningProof" },
+      "description": "Cleaning proofs scoped to a society"
+    },
+    "/societies/{societyId}/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Vehicles scoped to restricted society access"
+    }
+  }
+}
