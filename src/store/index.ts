@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 // --- Types ---
+
 export type Role = 'SUPER_ADMIN' | 'SECRETARY' | 'GUARD' | 'HOUSEKEEPING' | 'RESIDENT';
 
 export interface User {
@@ -294,15 +296,9 @@ const MOCK_USERS: User[] = [
   { id: 'u5', loginId: '101', password: '123', name: 'Resident 101', role: 'RESIDENT', societyId: 'soc_1', flatNo: '101' },
 ];
 
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-
-// ... (Types remain same)
-
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
-      // ... (Initial state logic remains same as above)
       registrationCharge: 5000, 
       setRegistrationCharge: (charge) => set({ registrationCharge: charge }),
       registerSocietyFull: (society: Society, staff: User[], residents: User[]) => set((state) => ({
@@ -316,7 +312,7 @@ export const useStore = create<AppState>()(
       })),
       addUser: (user) => set((state) => ({ users: [...state.users, user] })),
     
-      currentUser: MOCK_USERS[0],
+      currentUser: MOCK_USERS[4], // Default to residnet
       setCurrentUser: (user) => set({ currentUser: user }),
     
       societies: MOCK_SOCIETIES,
@@ -432,8 +428,8 @@ export const useStore = create<AppState>()(
       })),
     }),
     {
-      name: 'yogisentry-storage', // unique name
-      storage: createJSONStorage(() => localStorage), // use localStorage
+      name: 'yogisentry-storage', 
+      storage: createJSONStorage(() => localStorage), 
     }
   )
 );

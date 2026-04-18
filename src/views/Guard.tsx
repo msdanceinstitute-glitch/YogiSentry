@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore, VisitorRequest, Parcel } from '@/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,10 +7,12 @@ import { Camera, UserPlus, Clock, Package as PackageIcon, Car, X, Loader2, QrCod
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useLocation } from 'react-router-dom';
+import { SearchableFlatSelector } from '@/components/SearchableFlatSelector';
 import { Scanner } from '@yudiel/react-qr-scanner';
 
 export default function Guard() {
-  const { currentUser, parcels, visitorRequests, addVisitorRequest, addParcel, updateParcelStatus, updateVisitorStatus, permanentPasses } = useStore();
+  const { currentUser, parcels, visitorRequests, addVisitorRequest, addParcel, updateParcelStatus, updateVisitorStatus, permanentPasses, users } = useStore();
+  const allFlats = useMemo(() => Array.from(new Set(users.filter(u => u.flatNo).map(u => u.flatNo!))), [users]);
   const location = useLocation();
   const currentTab = location.pathname.split('/').pop() || 'guard';
 
@@ -170,7 +172,7 @@ export default function Guard() {
                     </div>
                     <div>
                       <label className="text-[12px] font-[600] text-text-muted uppercase mb-[8px] block">Destination Flat</label>
-                      <Input value={parcelFlatNo} onChange={(e)=>setParcelFlatNo(e.target.value)} placeholder="e.g. 101" required />
+                      <SearchableFlatSelector flats={allFlats} value={parcelFlatNo} onChange={setParcelFlatNo} placeholder="e.g. 101" />
                     </div>
                     <Button type="submit" className="w-full h-[40px]">
                       <PackageIcon className="mr-2 h-[16px] w-[16px]" /> Log Parcel via Cloud
@@ -240,7 +242,7 @@ export default function Guard() {
                    </div>
                    <div className="flex-1">
                      <label className="text-xs font-semibold mb-1 block">Flat No.</label>
-                     <Input placeholder="e.g. 101" value={flatNo} onChange={e=>setFlatNo(e.target.value)} />
+                     <SearchableFlatSelector flats={allFlats} value={flatNo} onChange={setFlatNo} placeholder="e.g. 101" />
                    </div>
                    <Button onClick={()=>{
                      if(!vehicleId || !flatNo) return toast.error("Missing fields");
@@ -395,7 +397,7 @@ export default function Guard() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[12px] font-[600] text-text-muted uppercase mb-[8px] block">Destination Flat</label>
-                        <Input value={flatNo} onChange={(e)=>setFlatNo(e.target.value)} placeholder="e.g. 101" required />
+                        <SearchableFlatSelector flats={allFlats} value={flatNo} onChange={setFlatNo} placeholder="e.g. 101" />
                       </div>
                       <div>
                         <label className="text-[12px] font-[600] text-text-muted uppercase mb-[8px] block">Reason / Type</label>

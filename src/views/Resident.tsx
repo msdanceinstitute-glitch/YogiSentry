@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { useStore } from '@/store';
+import { pusher } from '@/lib/pusher';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CheckCircle2, XCircle, Bell, Car, X, Package as PackageIcon, Info, Megaphone, FileText, QrCode } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function Resident() {
   const { 
@@ -23,8 +25,21 @@ export default function Resident() {
     clubhouseBookings,
     addClubhouseBooking,
     eventRequests,
-    addEventRequest
+    addEventRequest,
+    addParcel // Added this
   } = useStore();
+
+  React.useEffect(() => {
+    if (!currentUser?.societyId) return;
+    const channel = pusher.subscribe(`society-${currentUser.societyId}`);
+    channel.bind("parcel-received", (data: { parcelId: string; flat_no: string; recipient_name: string }) => {
+      // Logic to fetch parcel and add to store?
+      // Since the payload only has id/flat, we might need a fetch or just refresh.
+      // For now, let's assume the appState needs a refresh action
+      toast.success(`Parcel received for Flat ${data.flat_no}`);
+    });
+    return () => { pusher.unsubscribe(`society-${currentUser.societyId}`); };
+  }, [currentUser?.societyId]);
   const location = useLocation();
   const navigate = useNavigate();
   const currentTab = location.pathname.split('/').pop() || 'resident';

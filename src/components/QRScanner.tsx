@@ -13,12 +13,15 @@ export default function QRScanner() {
       </CardHeader>
       <CardContent>
         <Scanner
-          onResult={(text) => {
-            setData(text);
-            toast.success(`Scanned: ${text}`);
-            // Logic to verify against backend/store
+          onScan={(text) => {
+            if (text) {
+              setData(text);
+              toast.success(`Scanned: ${text}`);
+            }
           }}
-          onError={(error) => console.log(error?.message)}
+          onError={(error) => {
+            console.log(error);
+          }}
         />
         {data && <p className="mt-4 text-center font-mono">Last Scanned: {data}</p>}
       </CardContent>

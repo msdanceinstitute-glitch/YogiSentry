@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '@/store';
+import { pusher } from '@/lib/pusher';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +44,15 @@ export default function Secretary() {
     societies,
     updateSociety
   } = useStore();
+
+  React.useEffect(() => {
+    if (!currentUser?.societyId) return;
+    const channel = pusher.subscribe(`society-${currentUser.societyId}`);
+    channel.bind("new-complaint", (data: { complaintId: string; flat_no: string }) => {
+      toast.warning(`New Complaint! ${data.flat_no}`);
+    });
+    return () => { pusher.unsubscribe(`society-${currentUser.societyId}`); };
+  }, [currentUser?.societyId]);
   
   const currentSociety = societies.find(s => s.id === currentUser?.societyId);
 
