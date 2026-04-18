@@ -11,10 +11,19 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    req.user = { userId: decoded.userId, societyId: decoded.societyId, role: decoded.role };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; societyId: string; role: string };
+    req.user = decoded;
     next();
   } catch (err) {
     res.status(401).json({ error: "Invalid token" });
   }
+}
+
+export function authorizeRole(roles: string[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Forbidden: Insufficient privileges" });
+    }
+    next();
+  };
 }

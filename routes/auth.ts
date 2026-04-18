@@ -1,6 +1,6 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import client from "./src/lib/turso.js";
+import client from "../src/lib/turso.js";
 
 const routes = Router();
 

@@ -6,6 +6,12 @@ import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import visitorRoutes from "./routes/visitors.js";
+import financialRoutes from "./routes/financials.js";
+import complaintRoutes from "./routes/complaints.js";
+import communicationRoutes from "./routes/communication.js";
+import parcelRoutes from "./routes/parcels.js";
+import { checkSubscription } from "./middleware/subscription.js";
+import { authenticate } from "./middleware/auth.js";
 
 dotenv.config();
 
@@ -20,7 +26,11 @@ async function startServer() {
 
   // API routes
   app.use("/api/auth", authRoutes);
-  app.use("/api/visitors", visitorRoutes);
+  app.use("/api/visitors", authenticate, visitorRoutes);
+  app.use("/api/financials", authenticate, checkSubscription, financialRoutes);
+  app.use("/api/complaints", authenticate, checkSubscription, complaintRoutes);
+  app.use("/api/communication", authenticate, checkSubscription, communicationRoutes);
+  app.use("/api/parcels", authenticate, checkSubscription, parcelRoutes);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
