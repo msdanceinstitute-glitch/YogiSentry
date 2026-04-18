@@ -12,8 +12,8 @@ export const RealTimeListener = () => {
 
     const channel = pusher.subscribe(`society-${societyId}`);
 
-    channel.bind("parcel-received", (data: { flat_no: string; recipient_name: string }) => {
-      toast.success(`Parcel received for Flat ${data.flat_no} for ${data.recipient_name}`);
+    channel.bind("visitor-request", (data: { visitor_name: string; flat_no: string }) => {
+      toast.info(`New Visitor! ${data.visitor_name} is at the gate for Flat ${data.flat_no}`);
     });
 
     return () => {

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Camera, UserPlus, Clock, Package as PackageIcon, Car, X, Loader2, QrCode, Barcode, CheckCircle2, ScanLine } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useLocation } from 'react-router-dom';
 import { Scanner } from '@yudiel/react-qr-scanner';
@@ -226,20 +227,44 @@ export default function Guard() {
             </div>
           </>
         ) : currentTab === 'vehicles' ? (
-          <div className="lg:col-span-12 fade-in">
+          <div className="lg:col-span-12 fade-in space-y-6">
             <Card className="border-border shadow-none">
               <CardHeader>
-                <CardTitle>Vehicle Search & Logs</CardTitle>
+                <CardTitle>Register Visitor Vehicle</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-2 w-full max-w-sm mb-4">
-                   <Input placeholder="Enter Vehicle ID (e.g. DL 01 AB 1234)" />
-                   <Button onClick={()=>alert("Vehicle marked as entered!")}>Log Entry</Button>
+                <div className="flex gap-4 items-end">
+                   <div className="flex-1">
+                     <label className="text-xs font-semibold mb-1 block">Vehicle ID</label>
+                     <Input placeholder="e.g. DL 01 AB 1234" value={vehicleId} onChange={e=>setVehicleId(e.target.value)} />
+                   </div>
+                   <div className="flex-1">
+                     <label className="text-xs font-semibold mb-1 block">Flat No.</label>
+                     <Input placeholder="e.g. 101" value={flatNo} onChange={e=>setFlatNo(e.target.value)} />
+                   </div>
+                   <Button onClick={()=>{
+                     if(!vehicleId || !flatNo) return toast.error("Missing fields");
+                     // Add vehicle to store
+                     useStore.getState().addVehicle({ id: `v_${Date.now()}`, flatNo, vehicleId, frontPhoto: '', backPhoto: '', societyId: currentUser?.societyId || '' });
+                     setVehicleId(''); setFlatNo('');
+                     toast.success("Vehicle registered successfully!");
+                   }}>Log Entry</Button>
                 </div>
-                <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-lg">
-                  <p className="text-sm font-semibold text-text-main">No recent vehicles logged.</p>
-                  <p className="text-xs text-text-muted mt-1">Camera ALPR scanner currently offline. Please log manually.</p>
-                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border shadow-none">
+              <CardHeader>
+                <CardTitle>Vehicle Registry</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <table className="w-full text-sm">
+                    <thead><tr className="text-left text-xs text-slate-500 border-b"><th className="p-2">Vehicle ID</th><th className="p-2">Flat</th></tr></thead>
+                    <tbody>
+                      {useStore.getState().vehicles.filter(v => v.societyId === currentUser?.societyId).map(v => (
+                        <tr key={v.id} className="border-b"><td className="p-2 font-mono">{v.vehicleId}</td><td className="p-2">{v.flatNo}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
               </CardContent>
             </Card>
           </div>

@@ -1,6 +1,6 @@
 {
   "name": "YogiSentry",
-  "description": "Ultimate multi-tenant Apartment Management SaaS platform.",
+  "description": "Production-ready Multi-tenant Society Management System",
   "requestFramePermissions": [
     "camera"
   ],
