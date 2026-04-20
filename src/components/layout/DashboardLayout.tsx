@@ -4,7 +4,7 @@ import { useStore } from '@/store';
 import { 
   Building2, Users, LayoutDashboard, ShieldCheck, 
   Wrench, FileText, Bell, LogOut, Package, Image as ImageIcon,
-  Wallet, Settings, Menu, X, BarChart, Mail, ShieldAlert
+  Wallet, Settings, Menu, X, BarChart, Mail, ShieldAlert, Loader2
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -35,7 +35,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [currentUser, navigate]);
 
   if (!currentUser) {
-    return null;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
   }
 
   const getNavItems = (): SidebarItem[] => {
